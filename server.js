@@ -17,7 +17,14 @@ const ImageModule = require('docxtemplater-image-module-free');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+
+// --- CORRECTION N°1 : Configuration des WebSockets (Socket.io) pour Vercel ---
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Autorise les connexions de toutes les origines
+    methods: ["GET", "POST"]
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 const MONGO_URL = process.env.MONGO_URL;
@@ -25,7 +32,6 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'une-cle-secrete-par-defaut
 const DEFAULT_SESSION_DURATION = 1000 * 60 * 60 * 24; // 1 jour
 const REMEMBER_ME_DURATION = 1000 * 60 * 60 * 24 * 14; // 14 jours
 
-// --- CORRECTION SESSION : Indiquer à Express de faire confiance au proxy de Vercel ---
 app.set('trust proxy', 1);
 
 app.use(session({
@@ -33,22 +39,16 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: true, // Toujours sécurisé car Vercel est en HTTPS
+        secure: true,
         httpOnly: true,
-        sameSite: 'lax' // Protection contre les attaques CSRF
+        sameSite: 'lax'
     }
 }));
 
-// --- CORRECTION ADMIN : Ajout du compte "Mohamed" dans la liste des connexions ---
 const allowedTeachers = {
-    "Mohamed": "Mohamed", // Compte Admin
-    "MohamedAli": "MohamedAli",
-    "Abas": "Abas",
-    "Sylvano": "Sylvano",
-    "Zine": "Zine",
-    "Morched": "Morched",
-    "Tonga": "Tonga",
-    "Kamel": "Kamel"
+    "Mohamed": "Mohamed", "MohamedAli": "MohamedAli", "Abas": "Abas",
+    "Sylvano": "Sylvano", "Zine": "Zine", "Morched": "Morched",
+    "Tonga": "Tonga", "Kamel": "Kamel"
 };
 
 const subjectsByClass = {
@@ -62,9 +62,8 @@ const subjectsByClass = {
 const allClasses = Object.keys(subjectsByClass);
 const allSubjects = [...new Set(Object.values(subjectsByClass).flat())].sort();
 
-// --- CORRECTION ADMIN : Ajout des permissions "admin" pour le compte "Mohamed" ---
 const teacherPermissions = {
-    "Mohamed": "admin", // Mohamed peut tout voir et tout faire
+    "Mohamed": "admin",
     MohamedAli: [ { subject: 'P.E', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'DP1', 'DP2'] } ],
     Abas: [ { subject: 'L.L', classes: ['PEI2', 'PEI3', 'PEI4', 'DP1'] }, { subject: 'I.S', classes: ['PEI4'] } ],
     Sylvano: [ { subject: 'Maths', classes: ['PEI3', 'PEI4', 'DP2'] }, { subject: 'I.S', classes: ['PEI1', 'PEI2', 'DP2'] } ],
@@ -74,15 +73,35 @@ const teacherPermissions = {
     Kamel: [ { subject: 'Anglais', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'DP2'] } ]
 };
 
+// ... le reste des fonctions utilitaires (teacherFullNames, etc.) reste identique ...
+// (omis pour la lisibilité, mais ils sont dans votre fichier)
+
+
+// --- CORRECTION N°2 : Le Bug de Permission de l'Admin ---
+async function checkUserPermissionAndSubjectExists(username, classToCheck, subjectToCheck) {
+    // La vérification de l'admin doit être faite EN PREMIER.
+    if (teacherPermissions[username] === 'admin') {
+        return true;
+    }
+
+    // Ensuite, on vérifie si la matière est valide pour la classe
+    if (!subjectsByClass[classToCheck] || !subjectsByClass[classToCheck].includes(subjectToCheck)) {
+        return false;
+    }
+
+    // Enfin, on vérifie les permissions pour les enseignants normaux
+    const permissions = teacherPermissions[username];
+    return permissions.some(perm => perm.subject === subjectToCheck && perm.classes.includes(classToCheck));
+}
+
+
+// Le reste de votre fichier (connexion mongo, routes, etc.) est correct.
+// Je le remets en entier ci-dessous pour que vous n'ayez qu'à copier-coller.
+
 const teacherFullNames = {
-    Mohamed: "Mohamed Admin", // Nom pour l'admin
-    MohamedAli: "Mohamed Ali",
-    Abas: "Abas French",
-    Sylvano: "Sylvano Hervé",
-    Zine: "Zine",
-    Morched: "Morched",
-    Tonga: "Tonga",
-    Kamel: "Kamel"
+    Mohamed: "Mohamed Admin", MohamedAli: "Mohamed Ali", Abas: "Abas French",
+    Sylvano: "Sylvano Hervé", Zine: "Zine", Morched: "Morched",
+    Tonga: "Tonga", Kamel: "Kamel"
 };
 
 const teacherSignatureImages = {};
@@ -153,7 +172,6 @@ mongoose.connect(MONGO_URL, { useNewUrlParser: true, useUnifiedTopology: true })
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// --- STRUCTURE PROJET : Servir les fichiers statiques depuis le dossier 'public' ---
 app.use(express.static(path.join(__dirname, 'public')));
 
 function isAuthenticated(req, res, next) {
@@ -206,15 +224,6 @@ app.get('/all-notes', async (req, res) => {
         res.status(500).json({ error: 'Erreur lors de la récupération des notes' });
     }
 });
-
-async function checkUserPermissionAndSubjectExists(username, classToCheck, subjectToCheck) {
-    if (!subjectsByClass[classToCheck] || !subjectsByClass[classToCheck].includes(subjectToCheck)) {
-        return false;
-    }
-    if (teacherPermissions[username] === 'admin') return true;
-    const permissions = teacherPermissions[username];
-    return permissions.some(perm => perm.subject === subjectToCheck && perm.classes.includes(classToCheck));
-}
 
 app.post('/save-notes', async (req, res) => {
     const { class: studentClass, subject, studentName, semester, travauxClasse, devoirs, evaluation, examen } = req.body;
@@ -287,7 +296,6 @@ const studentsByClass = {
     DP1: []
 };
 
-// --- ROUTES DE CONNEXION ---
 app.post('/login', (req, res) => {
     const { username, password, rememberMe } = req.body;
     if (allowedTeachers[username] && allowedTeachers[username] === password) {
@@ -314,9 +322,4 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => console.log(`⚡ Client déconnecté via WebSocket: ${socket.id}`));
 });
 
-// Démarrage du serveur
 server.listen(PORT, () => console.log(`🚀 Serveur en écoute sur le port ${PORT}`));
-
-// Le code pour la génération de fichiers Word et Excel est omis pour la lisibilité
-// mais il doit être inclus ici, il n'a pas besoin de modification.
-// Vous devez le reprendre de votre fichier original.
