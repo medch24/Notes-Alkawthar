@@ -186,8 +186,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Servir les fichiers statiques (index.html, styles.css, index.js)
-app.use(express.static(path.join(__dirname, '.')));
-
+app.use(express.static(path.join(__dirname, 'public')));
 
 function isAuthenticated(req, res, next) {
     if (req.path === '/login.html' || req.path === '/login' || req.path === '/styles.css') {
@@ -377,3 +376,4 @@ server.listen(PORT, () => console.log(`🚀 Serveur en écoute sur le port ${POR
 // J'omets de le recoller ici pour la lisibilité, mais il doit rester dans votre fichier server.js.
 // Assurez-vous de copier TOUT le contenu de votre fichier server.js original,
 // puis de remplacer les sections que j'ai modifiées ci-dessus.
+
