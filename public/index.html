@@ -3,40 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connexion Enseignant</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
-          integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg=="
-          crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <title>Gestion des Notes</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/styles.css">
-    <style>
-        body { display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .login-container { background-color: #ffffff; padding: 2.5rem 3rem; border-radius: 12px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15); text-align: center; max-width: 420px; width: 90%; border-top: 5px solid #0288d1; }
-        .login-container img { max-height: 65px; margin-bottom: 1.5rem; }
-        .login-container h2 { color: #01579b; margin-bottom: 2rem; }
-        .input-group { margin-bottom: 1.5rem; text-align: left; position: relative; }
-        .password-toggle-icon { position: absolute; top: 68%; right: 12px; transform: translateY(-50%); cursor: pointer; color: #aaa; }
-        .error-message { color: #d32f2f; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; padding: 0.7rem 1rem; margin-top: 1.5rem; display: none; }
-        .error-message.show { display: block; }
-    </style>
 </head>
 <body>
-    <div class="login-container">
-        <img src="https://cdn.glitch.global/f566aaa0-dea8-4ebc-bb3a-23070b8c7e7a/al-kawthar-international-schools-jeddah-saudi-arabia-modified.png?v=1739958835552" alt="Logo École">
-        <h2>Connexion Enseignant</h2>
-        <form id="loginForm">
-            <div class="input-group">
-                <label for="username"><i class="fas fa-user"></i> Login</label>
-                <input type="text" id="username" name="username" required autocomplete="username">
-            </div>
-            <div class="input-group">
-                <label for="password"><i class="fas fa-lock"></i> Mot de passe</label>
-                <input type="password" id="password" name="password" required autocomplete="current-password">
-                <i class="fas fa-eye password-toggle-icon" id="togglePassword"></i>
-            </div>
-            <button type="submit">Se Connecter</button>
-            <p id="errorMessage" class="error-message"></p>
-        </form>
+
+    <!-- SECTION DE CONNEXION (visible par défaut) -->
+    <div id="login-container">
+        <div class="login-box">
+            <img src="https://cdn.glitch.global/f566aaa0-dea8-4ebc-bb3a-23070b8c7e7a/al-kawthar-international-schools-jeddah-saudi-arabia-modified.png?v=1739958835552" alt="Logo École">
+            <h2>Connexion Enseignant</h2>
+            <form id="loginForm">
+                <div class="input-group">
+                    <label for="username"><i class="fas fa-user"></i> Login</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="input-group">
+                    <label for="password"><i class="fas fa-lock"></i> Mot de passe</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit">Se Connecter</button>
+                <p id="errorMessage" class="error-message"></p>
+            </form>
+        </div>
     </div>
+
+    <!-- SECTION APPLICATION (cachée par défaut) -->
+    <div id="app-container" style="display: none;">
+        <header>
+            <div class="header-title">Gestion des Notes</div>
+            <div class="header-actions">
+                <span class="user-info">Connecté: <strong id="usernameDisplay"></strong></span>
+                <button id="logoutButton">Déconnexion</button>
+            </div>
+        </header>
+
+        <div class="semester-selector">
+            <h3>Choisir le Semestre :</h3>
+            <button data-semester="S1">Semestre 1</button>
+            <button data-semester="S2">Semestre 2</button>
+        </div>
+
+        <div class="container" id="mainContainer" style="display: none;">
+            <h2 id="formTitle">Saisir les Notes</h2>
+            <form id="noteForm">
+                <label for="class">Classe :</label>
+                <select id="class" required></select>
+                <label for="subject">Matière :</label>
+                <select id="subject" required></select>
+                <label for="studentName">Élève :</label>
+                <select id="studentName" required></select>
+                <div class="note-container">
+                    <div><label for="travauxClasse">Travaux Classe</label><input type="number" id="travauxClasse" min="0" step="0.01"></div>
+                    <div><label for="devoirs">Devoirs</label><input type="number" id="devoirs" min="0" step="0.01"></div>
+                    <div><label for="evaluation">Évaluation</label><input type="number" id="evaluation" min="0" step="0.01"></div>
+                    <div><label for="examen">Examen</label><input type="number" id="examen" min="0" step="0.01"></div>
+                </div>
+                <div class="error" id="formErrorMessage"></div>
+                <div class="success-message" id="formSuccessMessage"></div>
+                <button type="submit">Enregistrer la Note</button>
+            </form>
+            <div class="output" id="output"></div>
+        </div>
+    </div>
+
     <script src="/index.js"></script>
 </body>
 </html>
