@@ -14,8 +14,6 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'une-cle-secrete-par-defaut
 // Middlewares
 app.set('trust proxy', 1);
 app.use(bodyParser.json());
-
-// Configuration de la session avec MongoDB Store
 app.use(session({
     secret: SESSION_SECRET,
     resave: false,
@@ -24,7 +22,7 @@ app.use(session({
     cookie: { secure: true, httpOnly: true, sameSite: 'lax', maxAge: 1000 * 60 * 60 * 24 }
 }));
 
-// Connexion à MongoDB
+// Connexion MongoDB
 mongoose.connect(MONGO_URL);
 
 // Schéma et Modèle
@@ -35,10 +33,8 @@ const Note = mongoose.model('Note', NoteSchema);
 const allowedTeachers = { "Mohamed": "Mohamed", "MohamedAli": "MohamedAli", "Abas": "Abas", "Sylvano": "Sylvano", "Zine": "Zine", "Morched": "Morched", "Tonga": "Tonga", "Kamel": "Kamel" };
 const teacherPermissions = { "Mohamed": "admin", MohamedAli: [{ subject: 'P.E', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'DP1', 'DP2'] }], Abas: [{ subject: 'L.L', classes: ['PEI2', 'PEI3', 'PEI4', 'DP1'] }, { subject: 'I.S', classes: ['PEI4'] }], Sylvano: [{ subject: 'Maths', classes: ['PEI3', 'PEI4', 'DP2'] }, { subject: 'I.S', classes: ['PEI1', 'PEI2', 'DP2'] }], Zine: [{ subject: 'Sciences', classes: ['PEI1'] }, { subject: 'Biologie', classes: ['PEI2', 'PEI3', 'PEI4', 'DP2'] }, { subject: 'E.S', classes: ['DP2'] }], Morched: [{ subject: 'Physique-Chimie', classes: ['PEI2', 'PEI3', 'PEI4', 'DP2'] }, { subject: 'Maths', classes: ['PEI1', 'PEI2'] }], Tonga: [{ subject: 'Design', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4'] }, { subject: 'I.S', classes: ['PEI3'] }], Kamel: [{ subject: 'Anglais', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'DP2'] }] };
 const subjectsByClass = { PEI1: ['P.E', 'I.S', 'Maths', 'Sciences', 'Design', 'Anglais'], PEI2: ['P.E', 'L.L', 'I.S', 'Maths', 'Biologie', 'Physique-Chimie', 'Design', 'Anglais'], PEI3: ['P.E', 'L.L', 'I.S', 'Maths', 'Biologie', 'Physique-Chimie', 'Design', 'Anglais'], PEI4: ['P.E', 'L.L', 'I.S', 'Maths', 'Biologie', 'Physique-Chimie', 'Design', 'Anglais'], DP1: ['L.L'], DP2: ['P.E', 'Maths', 'I.S', 'Biologie', 'E.S', 'Physique-Chimie', 'Anglais'] };
-const allClasses = Object.keys(subjectsByClass);
-const allSubjects = [...new Set(Object.values(subjectsByClass).flat())].sort();
 
-// --- ROUTES API ---
+// ROUTES API
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     if (allowedTeachers[username] && allowedTeachers[username] === password) {
@@ -48,56 +44,14 @@ app.post('/api/login', (req, res) => {
         res.status(401).json({ message: 'Identifiants incorrects.' });
     }
 });
-
-app.get('/api/logout', (req, res) => {
-    req.session.destroy(() => {
-        res.clearCookie('connect.sid');
-        res.status(200).json({ message: 'Déconnecté' });
-    });
-});
-
 app.get('/api/session', (req, res) => {
     if (req.session.user) {
-        res.json({
-            loggedIn: true,
-            username: req.session.user,
-            permissions: getUserAllowedOptions(req.session.user),
-            subjectsByClass
-        });
+        res.json({ loggedIn: true, username: req.session.user });
     } else {
         res.json({ loggedIn: false });
     }
 });
+// ... autres routes API
 
-app.get('/api/notes', async (req, res) => {
-    if (!req.session.user) return res.status(401).json({ message: 'Non autorisé' });
-    try {
-        const notes = await Note.find(buildMongoQueryForUser(req.session.user, req.query.semester)).lean();
-        res.json(notes);
-    } catch (e) {
-        res.status(500).json({ message: 'Erreur BDD' });
-    }
-});
-
-app.post('/api/notes', async (req, res) => {
-    if (!req.session.user) return res.status(401).json({ message: 'Non autorisé' });
-    const teacher = req.session.user;
-    const { class: studentClass, subject } = req.body;
-    if (!checkUserPermission(teacher, studentClass, subject)) {
-        return res.status(403).json({ message: 'Permission refusée.' });
-    }
-    try {
-        const note = new Note({ ...req.body, teacher });
-        await note.save();
-        res.status(201).json({ message: 'Note enregistrée.' });
-    } catch (error) {
-        res.status(400).json({ message: "Erreur d'enregistrement." });
-    }
-});
-
-// Fonctions utilitaires
-function checkUserPermission(username, classToCheck, subjectToCheck) { if (teacherPermissions[username] === 'admin') return true; const p = teacherPermissions[username]; return p && p.some(perm => perm.subject === subjectToCheck && perm.classes.includes(classToCheck)); }
-function getUserAllowedOptions(username) { if (teacherPermissions[username] === 'admin') return { classes: [...allClasses], subjects: [...allSubjects] }; const p = teacherPermissions[username]; if (!p) return { classes: [], subjects: [] }; const cs = new Set(), ss = new Set(); p.forEach(perm => { ss.add(perm.subject); perm.classes.forEach(c => cs.add(c)); }); return { classes: Array.from(cs).sort(), subjects: Array.from(ss).sort() }; }
-function buildMongoQueryForUser(username, semester) { const q = { semester }; if (teacherPermissions[username] !== 'admin') { const p = teacherPermissions[username]; q.$or = p.flatMap(perm => perm.classes.map(c => ({ class: c, subject: perm.subject }))); } return q; }
-
+// Export pour Vercel
 module.exports = app;
