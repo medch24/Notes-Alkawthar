@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des Notes</title>
+    <script src="https://cdn.socket.io/4.5.1/socket.io.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+        integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Lien vers le fichier CSS externe -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="progress-container">
+        <label for="progressBar">Génération en cours...</label>
+        <progress id="progressBar" value="0" max="100"></progress>
+    </div>
+
+    <header>
+         <div class="header-title">
+             <img src="https://cdn.glitch.global/f566aaa0-dea8-4ebc-bb3a-23070b8c7e7a/al-kawthar-international-schools-jeddah-saudi-arabia-modified.png?v=1739958835552" alt="Logo École">
+             Gestion des Notes
+         </div>
+         <div class="header-actions">
+              <span class="user-info">Connecté: <strong id="usernameDisplay">...</strong></span>
+              <button id="generateWordButton" title="Générer un fichier Word par classe (ZIP)">
+                 <i class="fas fa-file-word"></i> Word
+              </button>
+              <button id="generateExcelButton" title="Générer des fichiers Excel (ZIP)">
+                 <i class="fas fa-file-excel"></i> Excel
+              </button>
+              <a href="/logout" id="logoutButton" title="Se déconnecter">
+                  <i class="fas fa-sign-out-alt"></i> Déconnexion
+              </a>
+         </div>
+    </header>
+    
+    <div class="semester-selector" id="semesterSelectorContainer">
+         <h3>Choisir le Semestre :</h3>
+         <button id="semester1Button" data-semester="S1">Semestre 1</button>
+         <button id="semester2Button" data-semester="S2">Semestre 2</button>
+    </div>
+    
+    <div class="container" id="mainContainer" data-print-semester="" style="display: none;">
+        <h2 id="formTitle"><i class="fas fa-edit"></i> Saisir les Notes - Semestre ?</h2>
+
+        <form id="noteForm">
+            <label for="class">Classe :</label>
+            <select id="class" required>
+                <option value="">-- Sélectionner une classe --</option>
+            </select>
+
+            <label for="subject">Matière :</label>
+            <select id="subject" required>
+                <option value="">-- Sélectionner une matière --</option>
+            </select>
+
+            <label for="studentName">Élève :</label>
+            <select id="studentName" required>
+                <option value="">-- Sélectionner un élève --</option>
+            </select>
+
+            <div class="note-container">
+                 <div class="note-item">
+                     <label for="travauxClasse">Travaux Classe</label>
+                     <input type="number" id="travauxClasse" placeholder="Max: -" min="0" step="0.01">
+                 </div>
+                 <div class="note-item">
+                     <label for="devoirs">Devoirs</label>
+                     <input type="number" id="devoirs" placeholder="Max: -" min="0" step="0.01">
+                 </div>
+                 <div class="note-item">
+                     <label for="evaluation">Évaluation</label>
+                     <input type="number" id="evaluation" placeholder="Max: -" min="0" step="0.01">
+                 </div>
+                 <div class="note-item">
+                     <label for="examen">Examen</label>
+                     <input type="number" id="examen" placeholder="Max: -" min="0" step="0.01">
+                 </div>
+            </div>
+            <div class="error" id="formErrorMessage"></div>
+            <div class="success-message" id="formSuccessMessage"></div>
+
+            <button type="submit"><i class="fas fa-save"></i> Enregistrer la Note</button>
+        </form>
+
+        <div class="filter-container">
+            <label><i class="fas fa-filter"></i> Filtrer :</label>
+            <select id="sortClass">
+                <option value="">Toutes les Classes</option>
+            </select>
+            <select id="sortSubject">
+                <option value="">Toutes les Matières</option>
+            </select>
+            <select id="sortStudent">
+                <option value="">Tous les Élèves</option>
+            </select>
+        </div>
+
+         <div class="table-container">
+            <div class="output" id="output">
+                 <!-- Le contenu sera généré par JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Lien vers le fichier JavaScript externe -->
+    <script src="index.js"></script>
+</body>
+</html>
