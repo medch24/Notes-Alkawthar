@@ -1,8 +1,7 @@
-// api/server.js - VERSION FINALE POUR VERCEL
+// api/index.js - VERSION FINALE SIMPLIFIÉE
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const path = require('path');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 require('dotenv').config();
@@ -10,39 +9,26 @@ require('dotenv').config();
 const app = express();
 
 const MONGO_URL = process.env.MONGO_URL;
-const SESSION_SECRET = process.env.SESSION_SECRET || 'une-cle-secrete-par-defaut-tres-longue-et-aleatoire';
+const SESSION_SECRET = process.env.SESSION_SECRET || 'une-cle-secrete-par-defaut-tres-longue';
 
 // Middlewares
 app.set('trust proxy', 1);
-// Le chemin vers le dossier public est maintenant différent
-app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
 
 // Configuration de la session avec MongoDB Store
 app.use(session({
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    store: MongoStore.create({
-        mongoUrl: MONGO_URL,
-        ttl: 14 * 24 * 60 * 60 // 14 jours
-    }),
-    cookie: {
-        secure: true,
-        httpOnly: true,
-        sameSite: 'lax',
-        maxAge: 1000 * 60 * 60 * 24 // 24 heures
-    }
+    store: MongoStore.create({ mongoUrl: MONGO_URL, ttl: 14 * 24 * 60 * 60 }),
+    cookie: { secure: true, httpOnly: true, sameSite: 'lax', maxAge: 1000 * 60 * 60 * 24 }
 }));
 
 // Connexion à MongoDB
-mongoose.connect(MONGO_URL)
-    .then(() => console.log('✅ Connexion à MongoDB réussie'))
-    .catch(err => console.error('❌ ERREUR DE CONNEXION MONGODB:', err));
+mongoose.connect(MONGO_URL);
 
 // Schéma et Modèle
-const NoteSchema = new mongoose.Schema({ class: String, subject: String, studentName: String, semester: { type: String, required: true }, travauxClasse: Number, devoirs: Number, evaluation: Number, examen: Number, teacher: String });
+const NoteSchema = new mongoose.Schema({ class: String, subject: String, studentName: String, semester: String, travauxClasse: Number, devoirs: Number, evaluation: Number, examen: Number, teacher: String });
 const Note = mongoose.model('Note', NoteSchema);
 
 // Données métier
@@ -57,26 +43,49 @@ app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     if (allowedTeachers[username] && allowedTeachers[username] === password) {
         req.session.user = username;
-        req.session.save(err => {
-            if (err) return res.status(500).json({ message: 'Erreur de session.' });
-            return res.status(200).json({ message: 'Connexion réussie' });
-        });
+        req.session.save(() => res.status(200).json({ message: 'Connexion réussie' }));
     } else {
-        return res.status(401).json({ message: 'Login ou mot de passe incorrect.' });
+        res.status(401).json({ message: 'Identifiants incorrects.' });
     }
 });
 
-const isAuthenticated = (req, res, next) => {
-    if (req.session && req.session.user) return next();
-    return res.status(401).json({ message: 'Session expirée.' });
-};
+app.get('/api/logout', (req, res) => {
+    req.session.destroy(() => {
+        res.clearCookie('connect.sid');
+        res.status(200).json({ message: 'Déconnecté' });
+    });
+});
 
-app.get('/api/get-user', isAuthenticated, (req, res) => { res.json({ username: req.session.user, permissions: getUserAllowedOptions(req.session.user), subjectsByClass }); });
-app.get('/api/all-notes', isAuthenticated, async (req, res) => { try { const notes = await Note.find(buildMongoQueryForUser(req.session.user, req.query.semester)).lean(); res.json(notes); } catch (e) { res.status(500).json({ message: 'Erreur BDD' }); } });
-app.post('/api/save-notes', isAuthenticated, async (req, res) => {
+app.get('/api/session', (req, res) => {
+    if (req.session.user) {
+        res.json({
+            loggedIn: true,
+            username: req.session.user,
+            permissions: getUserAllowedOptions(req.session.user),
+            subjectsByClass
+        });
+    } else {
+        res.json({ loggedIn: false });
+    }
+});
+
+app.get('/api/notes', async (req, res) => {
+    if (!req.session.user) return res.status(401).json({ message: 'Non autorisé' });
+    try {
+        const notes = await Note.find(buildMongoQueryForUser(req.session.user, req.query.semester)).lean();
+        res.json(notes);
+    } catch (e) {
+        res.status(500).json({ message: 'Erreur BDD' });
+    }
+});
+
+app.post('/api/notes', async (req, res) => {
+    if (!req.session.user) return res.status(401).json({ message: 'Non autorisé' });
     const teacher = req.session.user;
     const { class: studentClass, subject } = req.body;
-    if (!checkUserPermission(teacher, studentClass, subject)) return res.status(403).json({ message: 'Permission refusée.' });
+    if (!checkUserPermission(teacher, studentClass, subject)) {
+        return res.status(403).json({ message: 'Permission refusée.' });
+    }
     try {
         const note = new Note({ ...req.body, teacher });
         await note.save();
@@ -86,21 +95,9 @@ app.post('/api/save-notes', isAuthenticated, async (req, res) => {
     }
 });
 
-// --- ROUTES PAGES ---
-app.get('/logout', (req, res) => { req.session.destroy(() => { res.clearCookie('connect.sid'); res.redirect('/login'); }); });
-app.get('/login', (req, res) => { res.sendFile(path.join(__dirname, '..', 'public', 'login.html')); });
-app.get('/', (req, res) => {
-    if (req.session.user) {
-        res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
-    } else {
-        res.redirect('/login');
-    }
-});
-
 // Fonctions utilitaires
-function checkUserPermission(username, classToCheck, subjectToCheck) { /* ...votre code... */ return true; }
-function getUserAllowedOptions(username) { /* ...votre code... */ return { classes: allClasses, subjects: allSubjects }; }
-function buildMongoQueryForUser(username, semester) { /* ...votre code... */ return { semester }; }
+function checkUserPermission(username, classToCheck, subjectToCheck) { if (teacherPermissions[username] === 'admin') return true; const p = teacherPermissions[username]; return p && p.some(perm => perm.subject === subjectToCheck && perm.classes.includes(classToCheck)); }
+function getUserAllowedOptions(username) { if (teacherPermissions[username] === 'admin') return { classes: [...allClasses], subjects: [...allSubjects] }; const p = teacherPermissions[username]; if (!p) return { classes: [], subjects: [] }; const cs = new Set(), ss = new Set(); p.forEach(perm => { ss.add(perm.subject); perm.classes.forEach(c => cs.add(c)); }); return { classes: Array.from(cs).sort(), subjects: Array.from(ss).sort() }; }
+function buildMongoQueryForUser(username, semester) { const q = { semester }; if (teacherPermissions[username] !== 'admin') { const p = teacherPermissions[username]; q.$or = p.flatMap(perm => perm.classes.map(c => ({ class: c, subject: perm.subject }))); } return q; }
 
-// Export de l'app pour Vercel
 module.exports = app;
