@@ -4,70 +4,452 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestion des Notes</title>
+    <script src="https://cdn.socket.io/4.5.1/socket.io.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-
-    <!-- SECTION DE CONNEXION (visible par défaut) -->
-    <div id="login-container">
-        <div class="login-box">
-            <img src="https://cdn.glitch.global/f566aaa0-dea8-4ebc-bb3a-23070b8c7e7a/al-kawthar-international-schools-jeddah-saudi-arabia-modified.png?v=1739958835552" alt="Logo École">
-            <h2>Connexion Enseignant</h2>
-            <form id="loginForm">
-                <div class="input-group">
-                    <label for="username"><i class="fas fa-user"></i> Login</label>
-                    <input type="text" id="username" name="username" required>
-                </div>
-                <div class="input-group">
-                    <label for="password"><i class="fas fa-lock"></i> Mot de passe</label>
-                    <input type="password" id="password" name="password" required>
-                </div>
-                <button type="submit">Se Connecter</button>
-                <p id="errorMessage" class="error-message"></p>
-            </form>
-        </div>
+    <div id="progress-container">
+        <label for="progressBar">Génération en cours...</label>
+        <progress id="progressBar" value="0" max="100"></progress>
     </div>
 
-    <!-- SECTION APPLICATION (cachée par défaut) -->
-    <div id="app-container" style="display: none;">
-        <header>
-            <div class="header-title">Gestion des Notes</div>
-            <div class="header-actions">
-                <span class="user-info">Connecté: <strong id="usernameDisplay"></strong></span>
-                <button id="logoutButton">Déconnexion</button>
-            </div>
-        </header>
+    <header>
+         <div class="header-title">
+             <img src="https://cdn.glitch.global/f566aaa0-dea8-4ebc-bb3a-23070b8c7e7a/al-kawthar-international-schools-jeddah-saudi-arabia-modified.png?v=1739958835552" alt="Logo École">
+             Gestion des Notes
+         </div>
+         <div class="header-actions">
+              <span class="user-info">Connecté: <strong id="usernameDisplay">...</strong></span>
+              <button id="generateWordButton" title="Générer un fichier Word par classe (ZIP)">
+                 <i class="fas fa-file-word"></i> Word
+              </button>
+              <button id="generateExcelButton" title="Générer un fichier Excel">
+                 <i class="fas fa-file-excel"></i> Excel
+              </button>
+              <a href="/logout" id="logoutButton" title="Se déconnecter">
+                  <i class="fas fa-sign-out-alt"></i> Déconnexion
+              </a>
+         </div>
+    </header>
 
-        <div class="semester-selector">
-            <h3>Choisir le Semestre :</h3>
-            <button data-semester="S1">Semestre 1</button>
-            <button data-semester="S2">Semestre 2</button>
+    <div class="semester-selector" id="semesterSelectorContainer">
+         <h3>Choisir le Semestre :</h3>
+         <button id="semester1Button" data-semester="S1">Semestre 1</button>
+         <button id="semester2Button" data-semester="S2">Semestre 2</button>
+    </div>
+
+    <div class="container" id="mainContainer" data-print-semester="" style="display: none;">
+        <h2 id="formTitle"><i class="fas fa-edit"></i> Saisir les Notes - Semestre ?</h2>
+
+        <form id="noteForm">
+            <label for="class">Classe :</label>
+            <select id="class" required>
+                <option value="">-- Sélectionner une classe --</option>
+            </select>
+
+            <label for="subject">Matière :</label>
+            <select id="subject" required>
+                <option value="">-- Sélectionner une matière --</option>
+            </select>
+
+            <label for="studentName">Élève :</label>
+            <select id="studentName" required>
+                <option value="">-- Sélectionner un élève --</option>
+            </select>
+
+            <div class="note-container">
+                 <div class="note-item">
+                     <label for="travauxClasse">Travaux Classe</label>
+                     <input type="number" id="travauxClasse" placeholder="Max: -" min="0" step="0.01">
+                 </div>
+                 <div class="note-item">
+                     <label for="devoirs">Devoirs</label>
+                     <input type="number" id="devoirs" placeholder="Max: -" min="0" step="0.01">
+                 </div>
+                 <div class="note-item">
+                     <label for="evaluation">Évaluation</label>
+                     <input type="number" id="evaluation" placeholder="Max: -" min="0" step="0.01">
+                 </div>
+                 <div class="note-item">
+                     <label for="examen">Examen</label>
+                     <input type="number" id="examen" placeholder="Max: -" min="0" step="0.01">
+                 </div>
+            </div>
+            <div class="error" id="formErrorMessage"></div>
+            <div class="success-message" id="formSuccessMessage"></div>
+
+            <button type="submit"><i class="fas fa-save"></i> Enregistrer la Note</button>
+        </form>
+
+        <div class="filter-container">
+            <label><i class="fas fa-filter"></i> Filtrer :</label>
+            <select id="sortClass">
+                <option value="">Toutes les Classes</option>
+            </select>
+            <select id="sortSubject">
+                <option value="">Toutes les Matières</option>
+            </select>
+            <select id="sortStudent">
+                <option value="">Tous les Élèves</option>
+            </select>
         </div>
 
-        <div class="container" id="mainContainer" style="display: none;">
-            <h2 id="formTitle">Saisir les Notes</h2>
-            <form id="noteForm">
-                <label for="class">Classe :</label>
-                <select id="class" required></select>
-                <label for="subject">Matière :</label>
-                <select id="subject" required></select>
-                <label for="studentName">Élève :</label>
-                <select id="studentName" required></select>
-                <div class="note-container">
-                    <div><label for="travauxClasse">Travaux Classe</label><input type="number" id="travauxClasse" min="0" step="0.01"></div>
-                    <div><label for="devoirs">Devoirs</label><input type="number" id="devoirs" min="0" step="0.01"></div>
-                    <div><label for="evaluation">Évaluation</label><input type="number" id="evaluation" min="0" step="0.01"></div>
-                    <div><label for="examen">Examen</label><input type="number" id="examen" min="0" step="0.01"></div>
-                </div>
-                <div class="error" id="formErrorMessage"></div>
-                <div class="success-message" id="formSuccessMessage"></div>
-                <button type="submit">Enregistrer la Note</button>
-            </form>
+         <div class="table-container">
             <div class="output" id="output"></div>
         </div>
     </div>
 
-    <script src="/index.js"></script>
+    <script>
+        const socket = io();
+        let currentSemester = null;
+        let allNotesData = [];
+        let currentUserPermissions = { classes: [], subjects: [] };
+        let subjectsByClassGlobal = {};
+        let studentsByClassGlobal = {};
+
+        const classSelect = document.getElementById("class");
+        const subjectSelect = document.getElementById("subject");
+        const studentSelect = document.getElementById("studentName");
+        const sortClassSelect = document.getElementById("sortClass");
+        const sortSubjectSelect = document.getElementById("sortSubject");
+        const sortStudentSelect = document.getElementById("sortStudent");
+        const outputDiv = document.getElementById("output");
+        const usernameDisplay = document.getElementById('usernameDisplay');
+        const semester1Button = document.getElementById('semester1Button');
+        const semester2Button = document.getElementById('semester2Button');
+        const formTitle = document.getElementById('formTitle');
+        const formErrorMessage = document.getElementById("formErrorMessage");
+        const formSuccessMessage = document.getElementById("formSuccessMessage");
+        const mainContainer = document.getElementById("mainContainer");
+        const travauxClasseInput = document.getElementById("travauxClasse");
+        const devoirsInput = document.getElementById("devoirs");
+        const evaluationInput = document.getElementById("evaluation");
+        const examenInput = document.getElementById("examen");
+        const generateWordButton = document.getElementById("generateWordButton");
+        const generateExcelButton = document.getElementById("generateExcelButton");
+        const progressContainer = document.getElementById("progress-container");
+        const progressBar = document.getElementById("progressBar");
+
+        // Barèmes de notes
+        const noteLimits = {
+            PEI1: { travauxClasse: 30, devoirs: 20, evaluation: 20, examen: 30 },
+            PEI2: { travauxClasse: 20, devoirs: 20, evaluation: 30, examen: 30 },
+            PEI3: { travauxClasse: 20, devoirs: 20, evaluation: 30, examen: 30 },
+            PEI4: { travauxClasse: 20, devoirs: 20, evaluation: 30, examen: 30 },
+            DP1: { travauxClasse: 20, devoirs: 20, evaluation: 30, examen: 30 },
+            DP2: { travauxClasse: 20, devoirs: 20, evaluation: 30, examen: 30 }
+        };
+
+        // --- Fonctions utilitaires pour les menus déroulants ---
+        function clearSelectOptions(select, defaultText) {
+            select.innerHTML = `<option value="">${defaultText}</option>`;
+        }
+
+        function addOption(select, value, text) {
+            select.add(new Option(text, value));
+        }
+
+        // --- Gestion des messages ---
+        function showFormMessage(element, message, isError = true) {
+             element.textContent = message;
+             element.className = isError ? 'error show' : 'success-message show';
+             setTimeout(() => element.classList.remove('show'), 4000);
+        }
+
+        // --- Initialisation de l'application ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('/get-user');
+                if (!response.ok) window.location.href = '/login';
+                
+                const data = await response.json();
+                usernameDisplay.textContent = data.username;
+                currentUserPermissions = data.permissions;
+                subjectsByClassGlobal = data.subjectsByClass;
+                studentsByClassGlobal = data.studentsByClass;
+                
+                populatePermissionBasedDropdowns();
+            } catch (error) {
+                console.error('❌ Initialization error:', error);
+                window.location.href = '/login';
+            }
+        });
+
+        function populatePermissionBasedDropdowns() {
+            clearSelectOptions(classSelect, '-- Sélectionner une classe --');
+            clearSelectOptions(sortClassSelect, 'Toutes les Classes');
+            currentUserPermissions.classes.forEach(cls => {
+                addOption(classSelect, cls, cls);
+                addOption(sortClassSelect, cls, cls);
+            });
+
+            clearSelectOptions(sortSubjectSelect, 'Toutes les Matières');
+            currentUserPermissions.subjects.forEach(subj => {
+                addOption(sortSubjectSelect, subj, subj);
+            });
+            updateSortStudentOptionsForFilterClass('');
+        }
+
+        // --- Sélection du semestre ---
+        semester1Button.addEventListener('click', () => setActiveSemester('S1'));
+        semester2Button.addEventListener('click', () => setActiveSemester('S2'));
+
+        function setActiveSemester(semester) {
+            if (currentSemester === semester) return;
+            currentSemester = semester;
+
+            semester1Button.classList.toggle('active', semester === 'S1');
+            semester2Button.classList.toggle('active', semester === 'S2');
+            formTitle.innerHTML = `<i class="fas fa-edit"></i> Saisir les Notes - ${semester}`;
+            mainContainer.dataset.printSemester = semester;
+            mainContainer.style.display = 'block';
+
+            // Réinitialiser les filtres et le formulaire
+            [sortClassSelect, sortSubjectSelect, sortStudentSelect, classSelect].forEach(s => s.value = "");
+            updateFormOnClassChange();
+            fetchAndDisplayData();
+        }
+
+        // --- Logique du formulaire de saisie ---
+        classSelect.addEventListener("change", updateFormOnClassChange);
+
+        function updateFormOnClassChange() {
+            const selectedClass = classSelect.value;
+            clearSelectOptions(studentSelect, '-- Sélectionner un élève --');
+            clearSelectOptions(subjectSelect, '-- Sélectionner une matière --');
+            
+            if (selectedClass) {
+                (studentsByClassGlobal[selectedClass] || []).sort().forEach(s => addOption(studentSelect, s, s));
+                
+                const subjectsToShow = (subjectsByClassGlobal[selectedClass] || [])
+                    .filter(s => currentUserPermissions.subjects.includes(s)).sort();
+                subjectsToShow.forEach(s => addOption(subjectSelect, s, s));
+            }
+            updateLimits();
+        }
+        
+        function updateLimits() {
+            const limits = noteLimits[classSelect.value] || {};
+            travauxClasseInput.placeholder = `Max: ${limits.travauxClasse || '-'}`;
+            devoirsInput.placeholder = `Max: ${limits.devoirs || '-'}`;
+            evaluationInput.placeholder = `Max: ${limits.evaluation || '-'}`;
+            examenInput.placeholder = `Max: ${limits.examen || '-'}`;
+        }
+        
+        document.getElementById("noteForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!currentSemester) return showFormMessage(formErrorMessage, "Sélectionnez un semestre.");
+
+            const payload = {
+                class: classSelect.value, 
+                subject: subjectSelect.value, 
+                studentName: studentSelect.value, 
+                semester: currentSemester,
+                travauxClasse: travauxClasseInput.value || null,
+                devoirs: devoirsInput.value || null,
+                evaluation: evaluationInput.value || null,
+                examen: examenInput.value || null
+            };
+
+            if (!payload.class || !payload.subject || !payload.studentName) {
+                return showFormMessage(formErrorMessage, "Veuillez remplir tous les champs.");
+            }
+
+            try {
+                const response = await fetch("/save-notes", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+                const resultText = await response.text();
+                showFormMessage(response.ok ? formSuccessMessage : formErrorMessage, resultText, !response.ok);
+                if (response.ok) {
+                    document.getElementById("noteForm").reset();
+                    updateFormOnClassChange();
+                }
+            } catch (error) {
+                showFormMessage(formErrorMessage, "Erreur réseau. Veuillez réessayer.");
+            }
+        });
+
+        // --- Logique de filtrage et d'affichage du tableau ---
+        sortClassSelect.addEventListener("change", () => {
+            updateSortStudentOptionsForFilterClass(sortClassSelect.value);
+            applyFiltersAndDisplayTable();
+        });
+        sortSubjectSelect.addEventListener("change", applyFiltersAndDisplayTable);
+        sortStudentSelect.addEventListener("change", applyFiltersAndDisplayTable);
+
+        function updateSortStudentOptionsForFilterClass(selectedClass) {
+            clearSelectOptions(sortStudentSelect, 'Tous les Élèves');
+            let studentsToList = new Set();
+            const classesToScan = selectedClass ? [selectedClass] : currentUserPermissions.classes;
+            classesToScan.forEach(cls => {
+                (studentsByClassGlobal[cls] || []).forEach(s => studentsToList.add(s));
+            });
+            Array.from(studentsToList).sort().forEach(s => addOption(sortStudentSelect, s, s));
+        }
+
+        async function fetchAndDisplayData() {
+            if (!currentSemester) return;
+            outputDiv.innerHTML = "<p>Chargement...</p>";
+            try {
+                const response = await fetch(`/all-notes?semester=${currentSemester}`);
+                if (!response.ok) throw new Error(`Erreur ${response.status}`);
+                allNotesData = await response.json();
+                applyFiltersAndDisplayTable();
+            } catch (error) {
+                outputDiv.innerHTML = `<p class="error">Impossible de charger les notes.</p>`;
+            }
+        }
+        
+        function applyFiltersAndDisplayTable() {
+            const filteredData = allNotesData.filter(item => 
+                (!sortClassSelect.value || item.class === sortClassSelect.value) &&
+                (!sortSubjectSelect.value || item.subject === sortSubjectSelect.value) &&
+                (!sortStudentSelect.value || item.studentName === sortStudentSelect.value)
+            );
+            displayTable(filteredData);
+        }
+
+        function displayTable(data) {
+            outputDiv.innerHTML = "";
+            if (data.length === 0) {
+                outputDiv.innerHTML = `<p>Aucune note ne correspond à votre recherche pour le ${currentSemester}.</p>`;
+                return;
+            }
+            
+            const table = document.createElement("table");
+            table.innerHTML = `
+                <thead><tr>
+                    <th>Classe</th><th>Matière</th><th>Élève</th>
+                    <th>Travaux Cl.</th><th>Devoirs</th><th>Éval.</th><th>Examen</th>
+                    <th>Total</th><th>Actions</th>
+                </tr></thead>
+                <tbody></tbody>`;
+            const tbody = table.querySelector('tbody');
+
+            data.sort((a, b) => a.class.localeCompare(b.class) || a.subject.localeCompare(b.subject) || a.studentName.localeCompare(b.studentName))
+                .forEach(note => {
+                    const row = tbody.insertRow();
+                    row.dataset.noteId = note._id;
+                    let total = 0;
+                    
+                    row.innerHTML = `
+                        <td>${note.class}</td>
+                        <td>${note.subject}</td>
+                        <td>${note.studentName}</td>
+                        <td><input type="number" step="0.01" min="0" data-field="travauxClasse" value="${note.travauxClasse ?? ''}"></td>
+                        <td><input type="number" step="0.01" min="0" data-field="devoirs" value="${note.devoirs ?? ''}"></td>
+                        <td><input type="number" step="0.01" min="0" data-field="evaluation" value="${note.evaluation ?? ''}"></td>
+                        <td><input type="number" step="0.01" min="0" data-field="examen" value="${note.examen ?? ''}"></td>
+                        <td class="total-cell"></td>
+                        <td class="actions-cell">
+                            <button class="save-button">Enr.</button>
+                            <button class="delete-button">Sup.</button>
+                        </td>`;
+                    
+                    const inputs = row.querySelectorAll('input[data-field]');
+                    inputs.forEach(input => total += parseFloat(input.value || 0));
+                    row.querySelector('.total-cell').textContent = total.toFixed(2);
+                    
+                    inputs.forEach(input => input.addEventListener('input', () => updateRowTotal(row)));
+                });
+            
+            outputDiv.appendChild(table);
+        }
+
+        function updateRowTotal(row) {
+            let total = 0;
+            row.querySelectorAll('input[data-field]').forEach(input => total += parseFloat(input.value || 0));
+            row.querySelector('.total-cell').textContent = total.toFixed(2);
+        }
+
+        // --- Gestion des actions du tableau (Sauvegarder/Supprimer) ---
+        outputDiv.addEventListener('click', async (e) => {
+            const row = e.target.closest('tr');
+            if (!row) return;
+            const noteId = row.dataset.noteId;
+
+            if (e.target.classList.contains('save-button')) {
+                const payload = {};
+                row.querySelectorAll('input[data-field]').forEach(input => {
+                    payload[input.dataset.field] = input.value || null;
+                });
+                fetch(`/update-note/${noteId}`, {
+                    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+                }).then(res => {
+                    if (res.ok) {
+                        row.style.backgroundColor = '#d4edda';
+                        setTimeout(() => row.style.backgroundColor = '', 700);
+                    } else alert('Erreur de sauvegarde.');
+                });
+            }
+
+            if (e.target.classList.contains('delete-button')) {
+                if (confirm('Voulez-vous vraiment supprimer cette ligne ?')) {
+                    fetch(`/delete-note/${noteId}`, { method: "DELETE" }).then(res => {
+                        if (res.ok) row.remove();
+                        else alert('Erreur de suppression.');
+                    });
+                }
+            }
+        });
+
+        // --- WebSockets pour la mise à jour en temps réel ---
+        socket.on("note-added", (data) => {
+            if (data.semester === currentSemester) fetchAndDisplayData();
+        });
+        socket.on("note-updated", (data) => {
+             if (data.semester === currentSemester) {
+                const index = allNotesData.findIndex(n => n._id === data.note._id);
+                if(index > -1) {
+                    allNotesData[index] = data.note;
+                    applyFiltersAndDisplayTable();
+                }
+             }
+        });
+        socket.on("note-deleted", (data) => {
+            if (data.semester === currentSemester) {
+                allNotesData = allNotesData.filter(n => n._id !== data.id);
+                applyFiltersAndDisplayTable();
+            }
+        });
+
+        // --- Génération de fichiers ---
+        generateWordButton.addEventListener('click', () => generateFile('word'));
+        generateExcelButton.addEventListener('click', () => generateFile('excel'));
+
+        async function generateFile(type) {
+            if (!currentSemester) return alert("Sélectionnez un semestre.");
+            
+            progressContainer.style.display = "block";
+            progressBar.value = 0;
+
+            const url = type === 'word' ? `/generate-word?semester=${currentSemester}` : `/generate-excel?semester=${currentSemester}`;
+            const method = type === 'word' ? 'POST' : 'GET';
+            
+            try {
+                const response = await fetch(url, { method });
+                if (!response.ok) throw new Error(await response.text());
+                
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                const filename = response.headers.get('content-disposition').split('filename=')[1].replace(/"/g, '');
+                a.href = downloadUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(downloadUrl);
+            } catch (error) {
+                alert(`Erreur de génération (${type}):\n${error.message}`);
+            } finally {
+                setTimeout(() => progressContainer.style.display = "none", 1500);
+            }
+        }
+    </script>
 </body>
 </html>
