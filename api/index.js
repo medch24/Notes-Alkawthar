@@ -10,6 +10,7 @@ const JSZip = require('jszip');
 const axios = require('axios');
 const XLSX = require('xlsx');
 const session = require('express-session');
+const MongoStore = require('connect-mongo'); // <-- MODIFICATION : Importation pour les sessions
 require('dotenv').config();
 
 const app = express();
@@ -22,18 +23,31 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'une-cle-secrete-pour-le-de
 const DEFAULT_SESSION_DURATION = 1000 * 60 * 60 * 24; // 1 jour
 const REMEMBER_ME_DURATION = 1000 * 60 * 60 * 24 * 14; // 14 jours
 
-// --- Configuration de la session ---
+// --- MODIFICATION : Configuration de la session avec persistance MongoDB ---
+
+// Indique à Express de faire confiance au proxy de Vercel pour les cookies sécurisés
+app.set('trust proxy', 1);
+
 app.use(session({
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    // Stocker les sessions dans MongoDB
+    store: MongoStore.create({
+        mongoUrl: MONGO_URL,
+        ttl: REMEMBER_ME_DURATION / 1000, // Durée de vie en secondes
+        autoRemove: 'native'
+    }),
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: true, // Essentiel pour la production sur Vercel (HTTPS)
         httpOnly: true,
+        maxAge: REMEMBER_ME_DURATION, // Durée de vie du cookie
+        sameSite: 'lax' // Paramètre de sécurité recommandé
     }
 }));
 
-// --- NOUVELLES DONNÉES : Enseignants, Permissions et Élèves ---
+
+// --- DONNÉES : Enseignants, Permissions et Élèves ---
 
 const allowedTeachers = {
     "Mohamed Ali": "Mohamed Ali",
@@ -87,11 +101,10 @@ const studentsByClass = {
     PEI2: ["Ahmed Bouaziz", "Ali Kotbi", "Eyad Hassan", "Yasser Younes"],
     PEI3: ["Adam Kaaki", "Ahmad Mahayni", "Mohamed Chalak", "Seifeddine Ayadi", "Wajih Sabadine"],
     PEI4: ["Abdulrahman Bouaziz", "Mohamed Amine Sgheir", "Mohamed Younes", "Samir Kaaki", "Youssef Baakak"],
-    DP1: [], // Gardé pour la structure, mais pas d'élèves listés
+    DP1: [],
     DP2: ["Habib Lteif", "Mahdi Karimi", "Salah Boumalouga"]
 };
 
-// --- Génération dynamique de la structure des matières ---
 const subjectsByClass = {};
 Object.values(teacherPermissions).forEach(perms => {
     if (perms === 'admin') return;
@@ -110,7 +123,6 @@ const allClasses = Object.keys(subjectsByClass).sort();
 const allSubjects = [...new Set(Object.values(subjectsByClass).flat())].sort();
 
 // --- Fonctions Utilitaires ---
-
 function getAssignedTeacher(subject, className) {
     for (const [teacher, perms] of Object.entries(teacherPermissions)) {
         if (perms === 'admin') continue;
@@ -175,9 +187,6 @@ mongoose.connect(MONGO_URL, { useNewUrlParser: true, useUnifiedTopology: true })
 // --- Middlewares ---
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-
-// --- Servir les fichiers statiques depuis 'public' ---
-// La configuration de Vercel gère cela, mais c'est une bonne pratique pour le dev local
 app.use(express.static(path.join(process.cwd(), 'public')));
 
 // --- Routes publiques (Login/Logout) ---
@@ -189,7 +198,7 @@ app.post('/login', (req, res) => {
     const { username, password, rememberMe } = req.body;
     if (allowedTeachers[username] && allowedTeachers[username] === password) {
         req.session.user = username;
-        req.session.cookie.maxAge = (rememberMe === 'true') ? REMEMBER_ME_DURATION : DEFAULT_SESSION_DURATION;
+        // La durée de vie est déjà gérée dans la configuration du cookie
         console.log(`✅ Login successful for user: ${username}`);
         res.redirect('/');
     } else {
@@ -203,7 +212,7 @@ app.get('/logout', (req, res) => {
     req.session.destroy(err => {
         if (err) console.error("❌ Error destroying session:", err);
         console.log(`🚪 User ${user} logged out.`);
-        res.clearCookie('connect.sid');
+        res.clearCookie('connect.sid'); // Nom du cookie par défaut de express-session
         res.redirect('/login');
     });
 });
@@ -247,6 +256,7 @@ app.get('/get-user', (req, res) => {
     });
 });
 
+// ... (Le reste des routes /all-notes, /save-notes, etc. ne change pas)
 app.get('/all-notes', async (req, res) => {
     const { semester } = req.query;
     const username = req.session.user;
@@ -331,11 +341,9 @@ app.delete('/delete-note/:id', async (req, res) => {
     }
 });
 
-// --- Génération de Fichiers ---
 app.post('/generate-word', async (req, res) => {
     const { semester } = req.query;
     const username = req.session.user;
-
     try {
         const query = buildMongoQueryForUser(username, semester);
         const notes = await Note.find(query).lean();
@@ -460,7 +468,4 @@ io.on('connection', (socket) => {
 });
 
 // --- Export pour Vercel ---
-// En développement local, vous pouvez décommenter la ligne suivante
-// server.listen(3000, () => console.log('🚀 Server listening on port 3000'));
-
 module.exports = app;
