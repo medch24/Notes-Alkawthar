@@ -79,7 +79,15 @@
             <div class="error" id="formErrorMessage"></div>
             <div class="success-message" id="formSuccessMessage"></div>
 
-            <button type="submit"><i class="fas fa-save"></i> Enregistrer la Note</button>
+            <div class="form-buttons">
+                <button type="submit"><i class="fas fa-save"></i> Enregistrer la Note</button>
+                <div class="auto-progress-info" id="autoProgressInfo" style="display: none;">
+                    <span id="nextStudentName"></span>
+                    <button type="button" id="skipToNextButton" title="Passer à l'élève suivant sans enregistrer">
+                        <i class="fas fa-arrow-right"></i> Passer
+                    </button>
+                </div>
+            </div>
         </form>
 
         <div class="filter-container">
@@ -107,6 +115,9 @@
         let currentUserPermissions = { classes: [], subjects: [] };
         let subjectsByClassGlobal = {};
         let studentsByClassGlobal = {};
+        let currentStudentIndex = -1;
+        let currentStudentsList = [];
+        let autoProgressEnabled = false;
 
         const classSelect = document.getElementById("class");
         const subjectSelect = document.getElementById("subject");
@@ -213,14 +224,26 @@
 
         // --- Logique du formulaire de saisie ---
         classSelect.addEventListener("change", updateFormOnClassChange);
+        subjectSelect.addEventListener("change", updateFormOnSubjectChange);
+        studentSelect.addEventListener("change", updateStudentSelection);
+        
+        // Gestionnaire pour le bouton "Passer"
+        document.getElementById("skipToNextButton").addEventListener("click", moveToNextStudent);
 
         function updateFormOnClassChange() {
             const selectedClass = classSelect.value;
             clearSelectOptions(studentSelect, '-- Sélectionner un élève --');
             clearSelectOptions(subjectSelect, '-- Sélectionner une matière --');
             
+            // Réinitialiser le mode de progression automatique
+            autoProgressEnabled = false;
+            currentStudentIndex = -1;
+            currentStudentsList = [];
+            hideAutoProgressInfo();
+            
             if (selectedClass) {
-                (studentsByClassGlobal[selectedClass] || []).sort().forEach(s => addOption(studentSelect, s, s));
+                const sortedStudents = (studentsByClassGlobal[selectedClass] || []).sort();
+                sortedStudents.forEach(s => addOption(studentSelect, s, s));
                 
                 const subjectsToShow = (subjectsByClassGlobal[selectedClass] || [])
                     .filter(s => currentUserPermissions.subjects.includes(s)).sort();
@@ -229,12 +252,133 @@
             updateLimits();
         }
         
+        function updateFormOnSubjectChange() {
+            const selectedClass = classSelect.value;
+            const selectedSubject = subjectSelect.value;
+            
+            if (selectedClass && selectedSubject) {
+                // Activer le mode de progression automatique
+                autoProgressEnabled = true;
+                currentStudentsList = (studentsByClassGlobal[selectedClass] || []).sort();
+                
+                // Réinitialiser la sélection d'élève et passer au premier
+                studentSelect.value = '';
+                currentStudentIndex = -1;
+                
+                if (currentStudentsList.length > 0) {
+                    moveToNextStudent();
+                } else {
+                    hideAutoProgressInfo();
+                }
+            } else {
+                autoProgressEnabled = false;
+                hideAutoProgressInfo();
+                studentSelect.dataset.autoMode = 'false';
+            }
+        }
+        
         function updateLimits() {
             const limits = noteLimits[classSelect.value] || {};
             travauxClasseInput.placeholder = `Max: ${limits.travauxClasse || '-'}`;
             devoirsInput.placeholder = `Max: ${limits.devoirs || '-'}`;
             evaluationInput.placeholder = `Max: ${limits.evaluation || '-'}`;
             examenInput.placeholder = `Max: ${limits.examen || '-'}`;
+        }
+        
+        // Nouvelle fonction pour effacer seulement les champs de notes
+        function clearNoteFields() {
+            travauxClasseInput.value = '';
+            devoirsInput.value = '';
+            evaluationInput.value = '';
+            examenInput.value = '';
+        }
+        
+        // Fonction pour passer à l'élève suivant
+        function moveToNextStudent() {
+            if (!autoProgressEnabled || currentStudentsList.length === 0) {
+                return;
+            }
+            
+            currentStudentIndex++;
+            
+            if (currentStudentIndex >= currentStudentsList.length) {
+                // Fin de la liste, demander si on recommence
+                const restart = confirm('Vous avez terminé avec tous les élèves de cette classe pour cette matière.\n\nVoulez-vous recommencer du début ?');
+                if (restart) {
+                    currentStudentIndex = 0;
+                } else {
+                    autoProgressEnabled = false;
+                    hideAutoProgressInfo();
+                    studentSelect.value = '';
+                    return;
+                }
+            }
+            
+            const nextStudent = currentStudentsList[currentStudentIndex];
+            studentSelect.value = nextStudent;
+            
+            // Effacer les champs de notes pour le nouvel élève
+            clearNoteFields();
+            
+            // Marquer le select comme étant en mode automatique
+            studentSelect.dataset.autoMode = 'true';
+            
+            // Ajouter un effet visuel de transition
+            studentSelect.classList.add('student-transition');
+            setTimeout(() => {
+                studentSelect.classList.remove('student-transition');
+            }, 500);
+            
+            // Mettre à jour l'information sur le prochain élève
+            updateAutoProgressInfo();
+            
+            // Mettre le focus sur le premier champ de note après un délai
+            setTimeout(() => {
+                travauxClasseInput.focus();
+            }, 200);
+        }
+        
+        // Fonction pour mettre à jour l'affichage de l'information de progression
+        function updateAutoProgressInfo() {
+            const autoProgressInfo = document.getElementById('autoProgressInfo');
+            const nextStudentName = document.getElementById('nextStudentName');
+            
+            if (!autoProgressEnabled || currentStudentsList.length === 0) {
+                hideAutoProgressInfo();
+                return;
+            }
+            
+            const nextIndex = currentStudentIndex + 1;
+            if (nextIndex < currentStudentsList.length) {
+                const nextStudent = currentStudentsList[nextIndex];
+                nextStudentName.textContent = `Prochain: ${nextStudent}`;
+                autoProgressInfo.style.display = 'flex';
+            } else {
+                nextStudentName.textContent = 'Dernier élève de la liste';
+                autoProgressInfo.style.display = 'flex';
+            }
+        }
+        
+        // Fonction pour masquer l'information de progression automatique
+        function hideAutoProgressInfo() {
+            document.getElementById('autoProgressInfo').style.display = 'none';
+        }
+        
+        // Fonction appelée quand l'élève est sélectionné manuellement
+        function updateStudentSelection() {
+            if (autoProgressEnabled && studentSelect.value) {
+                const selectedStudent = studentSelect.value;
+                const studentIndex = currentStudentsList.indexOf(selectedStudent);
+                if (studentIndex !== -1) {
+                    currentStudentIndex = studentIndex;
+                    updateAutoProgressInfo();
+                }
+                
+                // Marquer le select comme étant en mode automatique
+                studentSelect.dataset.autoMode = 'true';
+            } else {
+                studentSelect.dataset.autoMode = 'false';
+            }
         }
         
         document.getElementById("noteForm").addEventListener("submit", async (e) => {
@@ -265,8 +409,18 @@
                 const resultText = await response.text();
                 showFormMessage(response.ok ? formSuccessMessage : formErrorMessage, resultText, !response.ok);
                 if (response.ok) {
-                    document.getElementById("noteForm").reset();
-                    updateFormOnClassChange();
+                    // Réinitialiser seulement les notes, pas les sélections de classe et matière
+                    clearNoteFields();
+                    
+                    // Passer automatiquement à l'élève suivant si le mode est activé
+                    if (autoProgressEnabled) {
+                        setTimeout(() => {
+                            moveToNextStudent();
+                        }, 1000); // Attendre 1 seconde pour que l'utilisateur voie le message de succès
+                    }
+                    
+                    // Actualiser le tableau
+                    fetchAndDisplayData();
                 }
             } catch (error) {
                 showFormMessage(formErrorMessage, "Erreur réseau. Veuillez réessayer.");
