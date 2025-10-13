@@ -222,7 +222,6 @@ select:focus, input:focus {
     box-shadow: 0 0 0 3px rgba(2, 136, 209, 0.15);
 }
 button[type="submit"] {
-    margin-top: 2.5rem;
     padding: 0.9rem 1.5rem;
     width: 100%;
     background-color: #0288d1;
@@ -322,3 +321,76 @@ td button {
 }
 td button.save-button { background-color: #28a745; }
 td button.delete-button { background-color: #dc3545; }
+
+/* Styles pour la progression automatique */
+.form-buttons {
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.auto-progress-info {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.8rem 1rem;
+    background-color: #e3f2fd;
+    border: 2px solid #2196f3;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    color: #1565c0;
+    font-weight: 500;
+}
+
+.auto-progress-info span {
+    flex-grow: 1;
+}
+
+#skipToNextButton {
+    padding: 0.5rem 1rem;
+    background-color: #ff9800;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    transition: background-color 0.3s ease;
+}
+
+#skipToNextButton:hover {
+    background-color: #f57c00;
+}
+
+/* Animation de transition pour les élèves */
+.student-transition {
+    animation: highlightStudent 0.5s ease-in-out;
+}
+
+@keyframes highlightStudent {
+    0% { background-color: #fff3cd; }
+    50% { background-color: #ffeaa7; }
+    100% { background-color: transparent; }
+}
+
+/* Style pour le select d'élèves en mode progression automatique */
+select#studentName[data-auto-mode="true"] {
+    background-color: #e8f5e8;
+    border-color: #4caf50;
+}
+
+/* Responsivité pour les petits écrans */
+@media (max-width: 768px) {
+    .auto-progress-info {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
+    }
+    
+    .auto-progress-info span {
+        margin-bottom: 0.3rem;
+    }
+}
