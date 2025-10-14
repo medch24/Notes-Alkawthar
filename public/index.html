@@ -219,6 +219,8 @@
             // Réinitialiser les filtres et le formulaire
             [sortClassSelect, sortSubjectSelect, sortStudentSelect, classSelect].forEach(s => s.value = "");
             updateFormOnClassChange();
+            
+            // Charger les données mais afficher le message de filtre
             fetchAndDisplayData();
         }
 
@@ -412,15 +414,30 @@
                     // Réinitialiser seulement les notes, pas les sélections de classe et matière
                     clearNoteFields();
                     
+                    // Actualiser les données et forcer l'affichage
+                    await fetchAndDisplayData();
+                    
+                    // Forcer l'affichage même si pas de filtre sélectionné pour voir la nouvelle note
+                    const classFilter = payload.class;
+                    const subjectFilter = payload.subject;
+                    const studentFilter = payload.studentName;
+                    
+                    // Appliquer des filtres automatiques pour montrer la note enregistrée
+                    if (!sortClassSelect.value && !sortSubjectSelect.value && !sortStudentSelect.value) {
+                        sortClassSelect.value = classFilter;
+                        updateSortStudentOptionsForFilterClass(classFilter);
+                        applyFiltersAndDisplayTable();
+                    } else {
+                        // Si des filtres sont déjà appliqués, juste rafraîchir
+                        applyFiltersAndDisplayTable();
+                    }
+                    
                     // Passer automatiquement à l'élève suivant si le mode est activé
                     if (autoProgressEnabled) {
                         setTimeout(() => {
                             moveToNextStudent();
                         }, 1000); // Attendre 1 seconde pour que l'utilisateur voie le message de succès
                     }
-                    
-                    // Actualiser le tableau
-                    fetchAndDisplayData();
                 }
             } catch (error) {
                 showFormMessage(formErrorMessage, "Erreur réseau. Veuillez réessayer.");
@@ -452,13 +469,31 @@
                 const response = await fetch(`/all-notes?semester=${currentSemester}`);
                 if (!response.ok) throw new Error(`Erreur ${response.status}`);
                 allNotesData = await response.json();
-                applyFiltersAndDisplayTable();
+                // Ne pas afficher automatiquement, attendre les filtres
+                showFilterMessage();
             } catch (error) {
                 outputDiv.innerHTML = `<p class="error">Impossible de charger les notes.</p>`;
             }
         }
         
+        // Fonction pour afficher un message d'attente de filtres
+        function showFilterMessage() {
+            outputDiv.innerHTML = `<div class="filter-message">
+                <i class="fas fa-filter"></i>
+                <h3>Sélectionnez des filtres pour afficher les notes</h3>
+                <p>Utilisez les filtres ci-dessus (Classe, Matière, ou Élève) pour afficher les notes correspondantes du ${currentSemester}.</p>
+            </div>`;
+        }
+        
         function applyFiltersAndDisplayTable() {
+            // Vérifier si au moins un filtre est sélectionné
+            const hasFilter = sortClassSelect.value || sortSubjectSelect.value || sortStudentSelect.value;
+            
+            if (!hasFilter) {
+                showFilterMessage();
+                return;
+            }
+            
             const filteredData = allNotesData.filter(item => 
                 (!sortClassSelect.value || item.class === sortClassSelect.value) &&
                 (!sortSubjectSelect.value || item.subject === sortSubjectSelect.value) &&
