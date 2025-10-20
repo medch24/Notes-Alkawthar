@@ -64,14 +64,14 @@ const allowedTeachers = {
 const teacherPermissions = {
     Mohamed: 'admin',
     'Mohamed Ali': [
-        { subject: 'P.E', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'DP1', 'DP2'] }
+        { subject: 'P.E', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'DP2'] }
     ],
     Sami: [
         { subject: 'Musique', classes: ['PEI1', 'PEI2', 'PEI3'] },
-        { subject: 'ART', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'DP1', 'DP2'] }
+        { subject: 'ART', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'DP2'] }
     ],
     Abas: [
-        { subject: 'L.L', classes: ['PEI1','PEI2', 'PEI3', 'PEI4', 'DP1'] },
+        { subject: 'L.L', classes: ['PEI1','PEI2', 'PEI3', 'PEI4', 'DP2'] },
         { subject: 'I.S', classes: ['PEI4'] }
     ],
     Sylvano: [
@@ -469,4 +469,5 @@ io.on('connection', (socket) => {
 
 // --- Export pour Vercel ---
 module.exports = app;
+
 
