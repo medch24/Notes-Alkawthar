@@ -90,6 +90,7 @@ const teacherPermissions = {
     Tonga: [
         { subject: 'Design', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4'] },
         { subject: 'I.S', classes: ['PEI3'] }
+        { subject: 'S.E.S', classes: ['DP2'] }
     ],
     Kamel: [
         { subject: 'Anglais', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'DP2'] }
@@ -468,3 +469,4 @@ io.on('connection', (socket) => {
 
 // --- Export pour Vercel ---
 module.exports = app;
+
