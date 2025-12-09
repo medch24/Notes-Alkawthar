@@ -8,51 +8,38 @@ const JSZip = require('jszip');
 const axios = require('axios');
 const XLSX = require('xlsx');
 const session = require('express-session');
+const MongoStore = require('connect-mongo');
 require('dotenv').config();
-
-// Import des données de section
-const {
-    allowedTeachersBoys,
-    teacherPermissionsBoys,
-    studentsByClassBoys,
-    allowedTeachersGirls,
-    teacherPermissionsGirls,
-    studentsByClassGirls
-} = require(path.join(__dirname, 'data-sections'));
+const { getSectionData, sectionMiddleware } = require(path.join(__dirname, 'section-middleware'));
 
 const app = express();
 
 // --- Configuration ---
 const MONGO_URL = process.env.MONGO_URL || "mongodb+srv://cherifmed:Mmedch86@notes.9gwg9o9.mongodb.net/?retryWrites=true&w=majority&appName=Notes";
 const SESSION_SECRET = process.env.SESSION_SECRET || 'une-cle-secrete-pour-le-developpement';
+const REMEMBER_ME_DURATION = 1000 * 60 * 60 * 24 * 14; // 14 jours
 
-// Connexion MongoDB (connection pooling pour serverless)
-let cachedDb = null;
-async function connectToDatabase() {
-    if (cachedDb) {
-        return cachedDb;
-    }
-    const connection = await mongoose.connect(MONGO_URL, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-        serverSelectionTimeoutMS: 5000,
-    });
-    cachedDb = connection;
-    return connection;
-}
+// Connexion MongoDB
+mongoose.connect(MONGO_URL, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log('✅ Connected to MongoDB'))
+    .catch(err => console.error('❌ MongoDB connection error:', err));
 
-// Configuration Express pour Vercel
+// Configuration Express
 app.set('trust proxy', 1);
 
-// Session avec MemoryStore (simplifié pour serverless)
 app.use(session({
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    store: MongoStore.create({
+        mongoUrl: MONGO_URL,
+        ttl: REMEMBER_ME_DURATION / 1000,
+        autoRemove: 'native'
+    }),
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: true,
         httpOnly: true,
-        maxAge: 1000 * 60 * 60 * 24, // 24h
+        maxAge: REMEMBER_ME_DURATION,
         sameSite: 'lax'
     }
 }));
@@ -73,65 +60,7 @@ const NoteSchema = new mongoose.Schema({
     examen: { type: Number, default: null },
     teacher: { type: String }
 });
-
-let Note;
-try {
-    Note = mongoose.model('Note');
-} catch {
-    Note = mongoose.model('Note', NoteSchema);
-}
-
-// Fonctions de gestion des sections
-function getSectionData(section = 'boys') {
-    let allowedTeachers, teacherPermissions, studentsByClass;
-    
-    if (section === 'girls') {
-        allowedTeachers = {...allowedTeachersGirls};
-        teacherPermissions = JSON.parse(JSON.stringify(teacherPermissionsGirls));
-        studentsByClass = JSON.parse(JSON.stringify(studentsByClassGirls));
-    } else {
-        allowedTeachers = {...allowedTeachersBoys};
-        teacherPermissions = JSON.parse(JSON.stringify(teacherPermissionsBoys));
-        studentsByClass = JSON.parse(JSON.stringify(studentsByClassBoys));
-    }
-    
-    const subjectsByClass = buildSubjectsByClass(teacherPermissions);
-    const allClasses = Object.keys(subjectsByClass).sort();
-    const allSubjects = [...new Set(Object.values(subjectsByClass).flat())].sort();
-    
-    return {
-        allowedTeachers,
-        teacherPermissions,
-        studentsByClass,
-        subjectsByClass,
-        allClasses,
-        allSubjects
-    };
-}
-
-function buildSubjectsByClass(permissions) {
-    const subjects = {};
-    Object.values(permissions).forEach(perms => {
-        if (perms === 'admin') return;
-        perms.forEach(p => {
-            p.classes.forEach(c => {
-                if (!subjects[c]) subjects[c] = new Set();
-                subjects[c].add(p.subject);
-            });
-        });
-    });
-    for (const key in subjects) {
-        subjects[key] = Array.from(subjects[key]).sort();
-    }
-    return subjects;
-}
-
-// Middleware de section
-function sectionMiddleware(req, res, next) {
-    const section = req.session?.section || 'boys';
-    req.sectionData = getSectionData(section);
-    next();
-}
+const Note = mongoose.model('Note', NoteSchema);
 
 // Fonctions utilitaires
 function getAssignedTeacher(subject, className, teacherPermissions) {
@@ -262,7 +191,6 @@ app.get('/get-user', (req, res) => {
 });
 
 app.get('/all-notes', async (req, res) => {
-    await connectToDatabase();
     const { semester } = req.query;
     const username = req.session.user;
     if (!semester || !['S1', 'S2'].includes(semester)) {
@@ -273,13 +201,11 @@ app.get('/all-notes', async (req, res) => {
         const notes = await Note.find(query).lean();
         res.status(200).json(notes);
     } catch (error) {
-        console.error('Error fetching notes:', error);
         res.status(500).json({ error: 'Erreur lors de la récupération des notes' });
     }
 });
 
 app.post('/save-notes', async (req, res) => {
-    await connectToDatabase();
     const { class: studentClass, subject, studentName, semester, travauxClasse, devoirs, evaluation, examen } = req.body;
     const teacher = req.session.user;
     if (!await checkUserPermissionAndSubjectExists(teacher, studentClass, subject, req.sectionData)) {
@@ -301,13 +227,11 @@ app.post('/save-notes', async (req, res) => {
         await note.save();
         res.status(200).send('✅ Notes sauvegardées avec succès');
     } catch (error) {
-        console.error('Error saving note:', error);
         res.status(500).send('❌ Erreur serveur lors de la sauvegarde.');
     }
 });
 
 app.put('/update-note/:id', async (req, res) => {
-    await connectToDatabase();
     const { id } = req.params;
     const updatedData = req.body;
     const teacher = req.session.user;
@@ -327,13 +251,11 @@ app.put('/update-note/:id', async (req, res) => {
         await Note.findByIdAndUpdate(id, cleanData, { new: true });
         res.status(200).send("✅ Note mise à jour.");
     } catch (error) {
-        console.error('Error updating note:', error);
         res.status(500).send("❌ Erreur serveur lors de la mise à jour.");
     }
 });
 
 app.delete('/delete-note/:id', async (req, res) => {
-    await connectToDatabase();
     const { id } = req.params;
     const teacher = req.session.user;
     try {
@@ -345,13 +267,11 @@ app.delete('/delete-note/:id', async (req, res) => {
         await Note.findByIdAndDelete(id);
         res.status(200).send("✅ Note supprimée.");
     } catch (error) {
-        console.error('Error deleting note:', error);
         res.status(500).send("❌ Erreur serveur lors de la suppression.");
     }
 });
 
 app.post('/generate-word', async (req, res) => {
-    await connectToDatabase();
     const { semester } = req.query;
     const username = req.session.user;
     try {
@@ -423,7 +343,6 @@ app.post('/generate-word', async (req, res) => {
 });
 
 app.get('/generate-excel', async (req, res) => {
-    await connectToDatabase();
     const { semester } = req.query;
     const username = req.session.user;
     try {

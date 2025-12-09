@@ -1,10 +1,13 @@
 {
   "name": "gestion-notes-vercel",
-  "version": "1.0.0",
-  "description": "Application de gestion de notes",
+  "version": "2.0.0",
+  "description": "Application de gestion de notes - Dual Section (Garçons/Filles)",
   "main": "api/index.js",
+  "type": "commonjs",
   "scripts": {
-    "start": "node api/index.js"
+    "start": "node api/index.js",
+    "dev": "node api/index.js",
+    "vercel-build": "echo 'Build complete'"
   },
   "dependencies": {
     "axios": "^1.7.2",

@@ -1,4 +1,5 @@
 // Middleware pour gérer les sections
+const path = require('path');
 const {
     allowedTeachersBoys,
     teacherPermissionsBoys,
@@ -6,7 +7,7 @@ const {
     allowedTeachersGirls,
     teacherPermissionsGirls,
     studentsByClassGirls
-} = require('./data-sections');
+} = require(path.join(__dirname, 'data-sections'));
 
 // Cache pour stocker les données de chaque section
 const sectionsCache = {
