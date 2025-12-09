@@ -12,6 +12,7 @@ const XLSX = require('xlsx');
 const session = require('express-session');
 const MongoStore = require('connect-mongo'); // <-- MODIFICATION : Importation pour les sessions
 require('dotenv').config();
+const { getSectionData, sectionMiddleware } = require('./section-middleware');
 
 const app = express();
 const server = http.createServer(app);
@@ -48,7 +49,10 @@ app.use(session({
 
 
 // --- DONNÉES : Enseignants, Permissions et Élèves ---
+// Les données sont maintenant gérées par le middleware de section
+// Voir api/section-middleware.js et api/data-sections.js
 
+// Placeholder - sera remplacé par les données de session
 const allowedTeachers = {
     "Mohamed Ali": "Mohamed Ali",
     "Sami": "Sami",
@@ -123,7 +127,7 @@ const allClasses = Object.keys(subjectsByClass).sort();
 const allSubjects = [...new Set(Object.values(subjectsByClass).flat())].sort();
 
 // --- Fonctions Utilitaires ---
-function getAssignedTeacher(subject, className) {
+function getAssignedTeacher(subject, className, teacherPermissions) {
     for (const [teacher, perms] of Object.entries(teacherPermissions)) {
         if (perms === 'admin') continue;
         for (const perm of perms) {
@@ -135,10 +139,10 @@ function getAssignedTeacher(subject, className) {
     return "N/D";
 }
 
-function getUserAllowedOptions(username) {
-    const permissions = teacherPermissions[username];
+function getUserAllowedOptions(username, sectionData) {
+    const permissions = sectionData.teacherPermissions[username];
     if (permissions === 'admin') {
-        return { classes: [...allClasses], subjects: [...allSubjects] };
+        return { classes: [...sectionData.allClasses], subjects: [...sectionData.allSubjects] };
     }
     if (!permissions) return { classes: [], subjects: [] };
 
@@ -154,7 +158,7 @@ function getUserAllowedOptions(username) {
     };
 }
 
-function buildMongoQueryForUser(username, semester) {
+function buildMongoQueryForUser(username, semester, teacherPermissions) {
     const baseQuery = { semester: semester };
     const permissions = teacherPermissions[username];
     if (!permissions || permissions === 'admin') {
@@ -169,11 +173,11 @@ function buildMongoQueryForUser(username, semester) {
     return { ...baseQuery, $or: orConditions };
 }
 
-async function checkUserPermissionAndSubjectExists(username, classToCheck, subjectToCheck) {
-    if (!subjectsByClass[classToCheck] || !subjectsByClass[classToCheck].includes(subjectToCheck)) {
+async function checkUserPermissionAndSubjectExists(username, classToCheck, subjectToCheck, sectionData) {
+    if (!sectionData.subjectsByClass[classToCheck] || !sectionData.subjectsByClass[classToCheck].includes(subjectToCheck)) {
         return false;
     }
-    const permissions = teacherPermissions[username];
+    const permissions = sectionData.teacherPermissions[username];
     if (permissions === 'admin') return true;
     if (!permissions) return false;
     return permissions.some(p => p.subject === subjectToCheck && p.classes.includes(classToCheck));
@@ -190,20 +194,37 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(process.cwd(), 'public')));
 
 // --- Routes publiques (Login/Logout) ---
+// Route racine - sélection de section
+app.get('/', (req, res) => {
+    if (req.session && req.session.user) {
+        return res.redirect('/dashboard');
+    }
+    res.sendFile(path.join(process.cwd(), 'public', 'section-selector.html'));
+});
+
 app.get('/login', (req, res) => {
+    const { section } = req.query;
+    if (section) {
+        req.session.section = section;
+    }
     res.sendFile(path.join(process.cwd(), 'public', 'login.html'));
 });
 
 app.post('/login', (req, res) => {
     const { username, password, rememberMe } = req.body;
-    if (allowedTeachers[username] && allowedTeachers[username] === password) {
+    const section = req.session.section || 'boys';
+    
+    // Obtenir les données de la section
+    const sectionData = getSectionData(section);
+    
+    if (sectionData.allowedTeachers[username] && sectionData.allowedTeachers[username] === password) {
         req.session.user = username;
-        // La durée de vie est déjà gérée dans la configuration du cookie
-        console.log(`✅ Login successful for user: ${username}`);
-        res.redirect('/');
+        req.session.section = section;
+        console.log(`✅ Login successful for user: ${username} in section: ${section}`);
+        res.redirect('/dashboard');
     } else {
         console.log(`❌ Login failed for user: ${username}`);
-        res.redirect('/login?error=1');
+        res.redirect(`/login?section=${section}&error=1`);
     }
 });
 
@@ -213,7 +234,7 @@ app.get('/logout', (req, res) => {
         if (err) console.error("❌ Error destroying session:", err);
         console.log(`🚪 User ${user} logged out.`);
         res.clearCookie('connect.sid'); // Nom du cookie par défaut de express-session
-        res.redirect('/login');
+        res.redirect('/');
     });
 });
 
@@ -223,9 +244,12 @@ app.use((req, res, next) => {
         next();
     } else {
         console.log(`🚫 User not authenticated trying to access ${req.path}. Redirecting to login.`);
-        res.redirect('/login');
+        res.redirect('/');
     }
 });
+
+// Ajouter le middleware de section à toutes les routes protégées
+app.use(sectionMiddleware);
 
 // --- Schéma et Modèle MongoDB ---
 const NoteSchema = new mongoose.Schema({
@@ -242,7 +266,7 @@ const NoteSchema = new mongoose.Schema({
 const Note = mongoose.model('Note', NoteSchema);
 
 // --- Routes Protégées (API) ---
-app.get('/', (req, res) => {
+app.get('/dashboard', sectionMiddleware, (req, res) => {
     res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
 });
 
@@ -250,9 +274,9 @@ app.get('/get-user', (req, res) => {
     const username = req.session.user;
     res.json({
         username: username,
-        permissions: getUserAllowedOptions(username),
-        subjectsByClass: subjectsByClass,
-        studentsByClass: studentsByClass
+        permissions: getUserAllowedOptions(username, req.sectionData),
+        subjectsByClass: req.sectionData.subjectsByClass,
+        studentsByClass: req.sectionData.studentsByClass
     });
 });
 
@@ -264,7 +288,7 @@ app.get('/all-notes', async (req, res) => {
         return res.status(400).json({ error: 'Le paramètre semester (S1 ou S2) est requis.' });
     }
     try {
-        const query = buildMongoQueryForUser(username, semester);
+        const query = buildMongoQueryForUser(username, semester, req.sectionData.teacherPermissions);
         const notes = await Note.find(query).lean();
         res.status(200).json(notes);
     } catch (error) {
@@ -275,7 +299,7 @@ app.get('/all-notes', async (req, res) => {
 app.post('/save-notes', async (req, res) => {
     const { class: studentClass, subject, studentName, semester, travauxClasse, devoirs, evaluation, examen } = req.body;
     const teacher = req.session.user;
-    if (!await checkUserPermissionAndSubjectExists(teacher, studentClass, subject)) {
+    if (!await checkUserPermissionAndSubjectExists(teacher, studentClass, subject, req.sectionData)) {
         return res.status(403).send(`❌ Permission refusée.`);
     }
     try {
@@ -306,7 +330,7 @@ app.put('/update-note/:id', async (req, res) => {
     try {
         const noteToUpdate = await Note.findById(id);
         if (!noteToUpdate) return res.status(404).send("❌ Note non trouvée.");
-        if (!await checkUserPermissionAndSubjectExists(teacher, noteToUpdate.class, noteToUpdate.subject)) {
+        if (!await checkUserPermissionAndSubjectExists(teacher, noteToUpdate.class, noteToUpdate.subject, req.sectionData)) {
             return res.status(403).send('❌ Permission refusée.');
         }
         const cleanData = {};
@@ -330,7 +354,7 @@ app.delete('/delete-note/:id', async (req, res) => {
     try {
         const noteToDelete = await Note.findById(id);
         if (!noteToDelete) return res.status(404).send("❌ Note non trouvée.");
-        if (!await checkUserPermissionAndSubjectExists(teacher, noteToDelete.class, noteToDelete.subject)) {
+        if (!await checkUserPermissionAndSubjectExists(teacher, noteToDelete.class, noteToDelete.subject, req.sectionData)) {
             return res.status(403).send('❌ Permission refusée.');
         }
         const deletedNote = await Note.findByIdAndDelete(id);
@@ -345,7 +369,7 @@ app.post('/generate-word', async (req, res) => {
     const { semester } = req.query;
     const username = req.session.user;
     try {
-        const query = buildMongoQueryForUser(username, semester);
+        const query = buildMongoQueryForUser(username, semester, req.sectionData.teacherPermissions);
         const notes = await Note.find(query).lean();
         if (notes.length === 0) return res.status(404).send(`❌ Aucune donnée pour le semestre ${semester}.`);
         
@@ -354,7 +378,7 @@ app.post('/generate-word', async (req, res) => {
         const templateContent = response.data;
 
         const zip = new JSZip();
-        const allowedOptions = getUserAllowedOptions(username);
+        const allowedOptions = getUserAllowedOptions(username, req.sectionData);
         
         const notesByClass = notes.reduce((acc, note) => {
             if (allowedOptions.classes.includes(note.class)) {
@@ -364,19 +388,19 @@ app.post('/generate-word', async (req, res) => {
         }, {});
 
         for (const className in notesByClass) {
-            const classStudentList = studentsByClass[className] || [];
+            const classStudentList = req.sectionData.studentsByClass[className] || [];
             if (classStudentList.length === 0) continue;
 
             const doc = new Docxtemplater(new PizZip(templateContent), { paragraphLoop: true, linebreaks: true, nullGetter: () => "" });
 
             const uniqueSubjectsInClassNotes = [...new Set(notesByClass[className].map(n => n.subject))];
-            const subjectsToInclude = (subjectsByClass[className] || []).filter(s => allowedOptions.subjects.includes(s) && uniqueSubjectsInClassNotes.includes(s)).sort();
+            const subjectsToInclude = (req.sectionData.subjectsByClass[className] || []).filter(s => allowedOptions.subjects.includes(s) && uniqueSubjectsInClassNotes.includes(s)).sort();
 
             if (subjectsToInclude.length === 0) continue;
 
             const renderDataSubjects = subjectsToInclude.map(subjectName => ({
                 subjectName: subjectName,
-                assignedTeacher: getAssignedTeacher(subjectName, className),
+                assignedTeacher: getAssignedTeacher(subjectName, className, req.sectionData.teacherPermissions),
                 students: classStudentList.map(studentName => {
                     const note = notesByClass[className].find(n => n.studentName === studentName && n.subject === subjectName);
                     const total = (note?.travauxClasse ?? 0) + (note?.devoirs ?? 0) + (note?.evaluation ?? 0) + (note?.examen ?? 0);
@@ -436,7 +460,7 @@ app.get('/generate-excel', async (req, res) => {
                 wsData.push([
                     note.class, note.subject, note.studentName,
                     note.travauxClasse ?? '', note.devoirs ?? '', note.evaluation ?? '', note.examen ?? '',
-                    total.toFixed(2), note.teacher || '', getAssignedTeacher(note.subject, note.class)
+                    total.toFixed(2), note.teacher || '', getAssignedTeacher(note.subject, note.class, req.sectionData.teacherPermissions)
                 ]);
             });
             const ws = XLSX.utils.aoa_to_sheet(wsData);

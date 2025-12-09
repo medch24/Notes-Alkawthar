@@ -7,9 +7,19 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
+<body class="login-page">
     <div class="login-container">
+        <a href="/" class="back-link">
+            <i class="fas fa-arrow-left"></i> Retour à la sélection
+        </a>
+        
         <img src="https://cdn.glitch.global/f566aaa0-dea8-4ebc-bb3a-23070b8c7e7a/al-kawthar-international-schools-jeddah-saudi-arabia-modified.png?v=1739958835552" alt="Logo École">
+        
+        <div class="section-badge" id="sectionBadge">
+            <i class="fas fa-male" id="sectionIcon"></i>
+            <span id="sectionName">Section Garçons</span>
+        </div>
+        
         <h2>Connexion Enseignant</h2>
         <form id="loginForm" action="/login" method="POST">
             <div class="input-group">
@@ -39,6 +49,9 @@
         const passwordInput = document.getElementById('password');
         const togglePassword = document.getElementById('togglePassword');
         const errorMessageElement = document.getElementById('errorMessage');
+        const sectionBadge = document.getElementById('sectionBadge');
+        const sectionIcon = document.getElementById('sectionIcon');
+        const sectionName = document.getElementById('sectionName');
 
         togglePassword.addEventListener('click', function () {
             const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
@@ -47,6 +60,21 @@
         });
 
         const urlParams = new URLSearchParams(window.location.search);
+        
+        // Déterminer la section depuis l'URL
+        const section = urlParams.get('section') || 'boys';
+        
+        // Mettre à jour l'affichage de la section
+        if (section === 'girls') {
+            document.body.classList.add('girls-section');
+            sectionBadge.classList.add('girls');
+            sectionIcon.className = 'fas fa-female';
+            sectionName.textContent = 'Section Filles';
+        } else {
+            document.body.classList.add('boys-section');
+            sectionBadge.classList.add('boys');
+        }
+        
         if (urlParams.has('error')) {
            errorMessageElement.textContent = 'Login ou mot de passe incorrect.';
            errorMessageElement.classList.add('show');
