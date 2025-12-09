@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestion des Notes</title>
-    <script src="https://cdn.socket.io/4.5.1/socket.io.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/styles.css">
 </head>
@@ -114,7 +113,6 @@
     </div>
 
     <script>
-        const socket = io();
         let currentSemester = null;
         let allNotesData = [];
         let currentUserPermissions = { classes: [], subjects: [] };
@@ -591,25 +589,8 @@
             }
         });
 
-        // --- WebSockets pour la mise à jour en temps réel ---
-        socket.on("note-added", (data) => {
-            if (data.semester === currentSemester) fetchAndDisplayData();
-        });
-        socket.on("note-updated", (data) => {
-             if (data.semester === currentSemester) {
-                const index = allNotesData.findIndex(n => n._id === data.note._id);
-                if(index > -1) {
-                    allNotesData[index] = data.note;
-                    applyFiltersAndDisplayTable();
-                }
-             }
-        });
-        socket.on("note-deleted", (data) => {
-            if (data.semester === currentSemester) {
-                allNotesData = allNotesData.filter(n => n._id !== data.id);
-                applyFiltersAndDisplayTable();
-            }
-        });
+        // Note: Temps réel désactivé pour Vercel (pas de WebSocket support)
+        // Les données sont rechargées lors des opérations CRUD
 
         // --- Génération de fichiers ---
         generateWordButton.addEventListener('click', () => generateFile('word'));
