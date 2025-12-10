@@ -3,6 +3,7 @@
 // ==================== DONNÉES BRUTES ====================
 
 // --- Section Garçons ---
+// Note: Pour les enseignants, le login et le mot de passe sont identiques au nom
 const teacherPermissionsBoys = {
     'Mohamed': 'admin',
     'Mohamed Ali': [
@@ -48,6 +49,7 @@ const studentsByClassBoys = {
 };
 
 // --- Section Filles ---
+// Note: Pour les enseignantes, le login et le mot de passe sont identiques au nom
 const teacherPermissionsGirls = {
     'Mohamed': 'admin',
     'Zohra': 'admin',
@@ -137,13 +139,15 @@ function generateAllowedTeachers(permissions, admins) {
 }
 
 // Configuration des administrateurs (User: Password)
+// Section Garçons: Mohamed uniquement
 const adminsBoys = { 
     "Mohamed": "Mohamed" 
 };
 
+// Section Filles: Zohra Zidane + Mohamed
 const adminsGirls = { 
-    "Mohamed": "Mohamed", 
-    "Zohra": "Zohra" 
+    "Zohra": "Zohra",        // Admin: Zohra Zidane (login: Zohra, mdp: Zohra)
+    "Mohamed": "Mohamed"     // Admin: Mohamed (login: Mohamed, mdp: Mohamed)
 };
 
 // Génération des listes d'accès

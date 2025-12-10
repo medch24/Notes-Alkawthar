@@ -249,8 +249,12 @@
             color: #E91E63;
         }
 
+        .icon-wrapper {
+            margin-bottom: 1rem;
+        }
+
         .section-card:hover .section-icon {
-            transform: rotateY(360deg);
+            transform: scale(1.1) rotateY(360deg);
         }
 
         .section-title {
@@ -264,6 +268,36 @@
             color: #666;
             font-size: 1rem;
             margin-bottom: 1.5rem;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 1.5rem 0;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.03);
+            border-radius: 10px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        .stat-item i {
+            font-size: 1.5rem;
+        }
+
+        .section-card.boys .stat-item i {
+            color: #2196F3;
+        }
+
+        .section-card.girls .stat-item i {
+            color: #E91E63;
         }
 
         .section-btn {
@@ -344,21 +378,45 @@
 
         <div class="section-cards">
             <div class="section-card boys" onclick="selectSection('boys')">
-                <i class="fas fa-male section-icon"></i>
+                <div class="icon-wrapper">
+                    <i class="fas fa-user-graduate section-icon"></i>
+                </div>
                 <h2 class="section-title">Section Garçons</h2>
-                <p class="section-description">Accéder à l'espace de gestion des notes</p>
+                <p class="section-description">Gestion des notes et suivi académique</p>
+                <div class="stats">
+                    <div class="stat-item">
+                        <i class="fas fa-users"></i>
+                        <span>5 Classes</span>
+                    </div>
+                    <div class="stat-item">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        <span>8 Enseignants</span>
+                    </div>
+                </div>
                 <button class="section-btn">
-                    Continuer
+                    <span>Accéder</span>
                     <i class="fas fa-arrow-right"></i>
                 </button>
             </div>
 
             <div class="section-card girls" onclick="selectSection('girls')">
-                <i class="fas fa-female section-icon"></i>
+                <div class="icon-wrapper">
+                    <i class="fas fa-user-graduate section-icon"></i>
+                </div>
                 <h2 class="section-title">Section Filles</h2>
-                <p class="section-description">Accéder à l'espace de gestion des notes</p>
+                <p class="section-description">Gestion des notes et suivi académique</p>
+                <div class="stats">
+                    <div class="stat-item">
+                        <i class="fas fa-users"></i>
+                        <span>7 Classes</span>
+                    </div>
+                    <div class="stat-item">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        <span>12 Enseignantes</span>
+                    </div>
+                </div>
                 <button class="section-btn">
-                    Continuer
+                    <span>Accéder</span>
                     <i class="fas fa-arrow-right"></i>
                 </button>
             </div>
