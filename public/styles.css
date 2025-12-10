@@ -141,6 +141,29 @@ body::before {
     border-top: 5px solid #E91E63;
 }
 
+.girls-section header {
+    background: linear-gradient(135deg, #E91E63 0%, #C2185B 100%);
+}
+
+.girls-section .semester-selector {
+    background: linear-gradient(135deg, #FCE4EC, #F8BBD0);
+    border-bottom: 3px solid #E91E63;
+}
+
+.girls-section .semester-selector button {
+    border: 2px solid #E91E63;
+    color: #E91E63;
+}
+
+.girls-section .semester-selector button.active {
+    background: linear-gradient(135deg, #E91E63, #C2185B 100%);
+    color: white;
+}
+
+.girls-section #formTitle {
+    color: #E91E63;
+}
+
 .login-container img {
     max-height: 80px;
     margin-bottom: 1.5rem;

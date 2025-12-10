@@ -179,6 +179,17 @@
                 
                 const data = await response.json();
                 usernameDisplay.textContent = data.username;
+                
+                // Update UI based on section
+                const sectionIndicator = document.getElementById('sectionIndicator');
+                if (data.section === 'girls') {
+                    document.body.classList.add('girls-section');
+                    sectionIndicator.innerHTML = '<i class="fas fa-female"></i> Section Filles';
+                } else {
+                    document.body.classList.remove('girls-section');
+                    sectionIndicator.innerHTML = '<i class="fas fa-male"></i> Section Garçons';
+                }
+
                 currentUserPermissions = data.permissions;
                 subjectsByClassGlobal = data.subjectsByClass;
                 studentsByClassGlobal = data.studentsByClass;

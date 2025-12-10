@@ -1,51 +1,40 @@
 // Fichier de données pour les deux sections
 
-// ==================== SECTION GARÇONS ====================
+// ==================== DONNÉES BRUTES ====================
 
-const allowedTeachersBoys = {
-    "Mohamed Ali": "Mohamed Ali",
-    "Sami": "Sami",
-    "Abas": "Abas",
-    "Sylvano": "Sylvano",
-    "Zine": "Zine",
-    "Morched": "Morched",
-    "Tonga": "Tonga",
-    "Kamel": "Kamel",
-    "Mohamed": "Mohamed" // Admin
-};
-
+// --- Section Garçons ---
 const teacherPermissionsBoys = {
-    Mohamed: 'admin',
+    'Mohamed': 'admin',
     'Mohamed Ali': [
         { subject: 'P.E', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'DP2'] }
     ],
-    Sami: [
+    'Sami': [
         { subject: 'Musique', classes: ['PEI1', 'PEI2', 'PEI3'] },
         { subject: 'ART', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'DP2'] }
     ],
-    Abas: [
+    'Abas': [
         { subject: 'L.L', classes: ['PEI1','PEI2', 'PEI3', 'PEI4', 'DP2'] },
         { subject: 'I.S', classes: ['PEI4'] }
     ],
-    Sylvano: [
+    'Sylvano': [
         { subject: 'Maths', classes: ['PEI3', 'PEI4', 'DP2'] },
         { subject: 'I.S', classes: ['PEI1', 'PEI2', 'DP2'] }
     ],
-    Zine: [
+    'Zine': [
         { subject: 'Sciences', classes: ['PEI1'] },
         { subject: 'Biologie', classes: ['PEI2', 'PEI3', 'PEI4', 'DP2'] },
         { subject: 'E.S', classes: ['DP2'] }
     ],
-    Morched: [
+    'Morched': [
         { subject: 'Physique-Chimie', classes: ['PEI2', 'PEI3', 'PEI4', 'DP2'] },
         { subject: 'Maths', classes: ['PEI1', 'PEI2'] }
     ],
-    Tonga: [
+    'Tonga': [
         { subject: 'Design', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4'] },
         { subject: 'I.S', classes: ['PEI3'] },
         { subject: 'S.E.S', classes: ['DP2'] }
     ],
-    Kamel: [
+    'Kamel': [
         { subject: 'Anglais', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'DP2'] }
     ]
 };
@@ -58,50 +47,32 @@ const studentsByClassBoys = {
     DP2: ["Habib Lteif", "Mahdi Karimi", "Salah Boumalouga"]
 };
 
-// ==================== SECTION FILLES ====================
-
-const allowedTeachersGirls = {
-    "Amal": "Amal",
-    "Inas": "Inas",
-    "Anouar": "Anouar",
-    "Souha": "Souha",
-    "Samira": "Samira",
-    "Zohra": "Zohra",
-    "Zohra Zidane": "Zohra Zidane",
-    "Aichetou": "Aichetou",
-    "Hiba": "Hiba",
-    "Shanouja": "Shanouja",
-    "Hana": "Hana",
-    "Farah": "Farah",
-    "Tayba": "Tayba",
-    "Mohamed": "Mohamed" // Admin
-};
-
+// --- Section Filles ---
 const teacherPermissionsGirls = {
-    Mohamed: 'admin',
-    Zohra: 'admin',
-    Amal: [
+    'Mohamed': 'admin',
+    'Zohra': 'admin',
+    'Amal': [
         { subject: 'Anglais', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4'] }
     ],
-    Inas: [
+    'Inas': [
         { subject: 'Maths', classes: ['PEI5', 'PEI4', 'DP1', 'DP2'] },
         { subject: 'Physique-Chimie', classes: ['PEI5', 'DP1', 'DP2'] },
         { subject: 'Études Scientifiques – ES', classes: ['DP1'] }
     ],
-    Anouar: [
+    'Anouar': [
         { subject: 'Design', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4'] },
         { subject: 'Biologie', classes: ['PEI3', 'PEI4'] },
         { subject: 'Physique-Chimie', classes: ['PEI3'] },
         { subject: 'Maths', classes: ['PEI3'] }
     ],
-    Souha: [
+    'Souha': [
         { subject: 'Physique-Chimie', classes: ['PEI2'] },
         { subject: 'Maths', classes: ['PEI1', 'PEI2'] },
         { subject: 'Biologie', classes: ['PEI2', 'PEI5'] },
         { subject: 'Sciences Numériques et Technologiques – SNT', classes: ['PEI5'] },
         { subject: 'Sciences', classes: ['PEI1'] }
     ],
-    Samira: [
+    'Samira': [
         { subject: 'Individus et Sociétés', classes: ['PEI4', 'PEI5', 'DP1', 'DP2'] },
         { subject: 'Langue et Littérature', classes: ['PEI4', 'PEI5', 'DP1', 'DP2'] },
         { subject: 'Sciences Économiques et Sociales – SES', classes: ['DP1', 'DP2'] }
@@ -111,24 +82,24 @@ const teacherPermissionsGirls = {
         { subject: 'Biologie', classes: ['DP1', 'DP2'] },
         { subject: 'Études Scientifiques – ES', classes: ['DP1', 'DP2'] }
     ],
-    Aichetou: [
+    'Aichetou': [
         { subject: 'Individus et Sociétés', classes: ['PEI1', 'PEI2', 'PEI3'] },
         { subject: 'Langue et Littérature', classes: ['PEI1', 'PEI2', 'PEI3'] },
         { subject: 'Sciences Économiques et Sociales – SES', classes: ['PEI5'] }
     ],
-    Hiba: [
+    'Hiba': [
         { subject: 'Anglais', classes: ['DP1', 'DP2'] }
     ],
-    Shanouja: [
+    'Shanouja': [
         { subject: 'Anglais', classes: ['PEI5'] }
     ],
-    Hana: [
+    'Hana': [
         { subject: 'Éducation Physique et Sportive – EPS', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'PEI5', 'DP1', 'DP2'] }
     ],
-    Farah: [
+    'Farah': [
         { subject: 'Musique', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'PEI5', 'DP1', 'DP2'] }
     ],
-    Tayba: [
+    'Tayba': [
         { subject: 'ART', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'PEI5', 'DP1', 'DP2'] }
     ]
 };
@@ -142,6 +113,42 @@ const studentsByClassGirls = {
     PEI4: ["Maria Wahib", "Sarah Aldebasy", "Yousr Letaief"],
     PEI5: ["Badia Khaldi", "Luluwah Alghabashi"]
 };
+
+// ==================== GÉNÉRATION DYNAMIQUE DES UTILISATEURS ====================
+
+// Fonction pour générer la liste des enseignants autorisés
+function generateAllowedTeachers(permissions, admins) {
+    const allowed = {};
+    
+    // 1. Ajouter les administrateurs avec leurs mots de passe spécifiques
+    for (const [adminUser, adminPass] of Object.entries(admins)) {
+        allowed[adminUser] = adminPass;
+    }
+    
+    // 2. Ajouter les enseignants (Username = Password)
+    for (const teacherName of Object.keys(permissions)) {
+        // Si l'enseignant n'est pas déjà défini comme admin (pour éviter d'écraser le mot de passe admin)
+        if (!allowed[teacherName]) {
+             allowed[teacherName] = teacherName; 
+        }
+    }
+    
+    return allowed;
+}
+
+// Configuration des administrateurs (User: Password)
+const adminsBoys = { 
+    "Mohamed": "Mohamed" 
+};
+
+const adminsGirls = { 
+    "Mohamed": "Mohamed", 
+    "Zohra": "Zohra" 
+};
+
+// Génération des listes d'accès
+const allowedTeachersBoys = generateAllowedTeachers(teacherPermissionsBoys, adminsBoys);
+const allowedTeachersGirls = generateAllowedTeachers(teacherPermissionsGirls, adminsGirls);
 
 // Export des données
 module.exports = {
