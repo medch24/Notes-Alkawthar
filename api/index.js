@@ -253,8 +253,10 @@ app.get('/dashboard', (req, res) => {
 
 app.get('/get-user', (req, res) => {
     const username = req.session.user;
+    const section = req.session.section || 'boys';
     res.json({
         username: username,
+        section: section,
         permissions: getUserAllowedOptions(username, req.sectionData),
         subjectsByClass: req.sectionData.subjectsByClass,
         studentsByClass: req.sectionData.studentsByClass
