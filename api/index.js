@@ -190,36 +190,32 @@ async function checkUserPermissionAndSubjectExists(username, classToCheck, subje
     return permissions.some(p => p.subject === subjectToCheck && p.classes.includes(classToCheck));
 }
 
-// Routes publiques
+// Routes publiques - Servir index.html pour toutes les pages
 app.get('/', (req, res) => {
-    if (req.session && req.session.user) {
-        return res.redirect('/dashboard');
-    }
-    res.sendFile(path.join(__dirname, '..', 'public', 'section-selector.html'));
+    res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
-app.get('/login', (req, res) => {
-    const { section } = req.query;
-    if (section) {
-        req.session.section = section;
-    }
-    res.sendFile(path.join(__dirname, '..', 'public', 'login.html'));
-});
-
+// Route de login (POST) - mise à jour pour gérer la section depuis le body
 app.post('/login', (req, res) => {
-    const { username, password } = req.body;
-    const section = req.session.section || 'boys';
+    const { username, password, section, rememberMe } = req.body;
+    const userSection = section || 'boys';
     
-    const sectionData = getSectionData(section);
+    const sectionData = getSectionData(userSection);
     
     if (sectionData.allowedTeachers[username] && sectionData.allowedTeachers[username] === password) {
         req.session.user = username;
-        req.session.section = section;
-        console.log(`✅ Login successful for user: ${username} in section: ${section}`);
-        res.redirect('/dashboard');
+        req.session.section = userSection;
+        
+        // Gérer "Rester connecté"
+        if (rememberMe) {
+            req.session.cookie.maxAge = 14 * 24 * 60 * 60 * 1000; // 14 jours
+        }
+        
+        console.log(`✅ Login successful for user: ${username} in section: ${userSection}`);
+        res.status(200).json({ success: true, message: 'Connexion réussie' });
     } else {
         console.log(`❌ Login failed for user: ${username}`);
-        res.redirect(`/login?section=${section}&error=1`);
+        res.status(401).json({ success: false, message: 'Login ou mot de passe incorrect' });
     }
 });
 
@@ -229,29 +225,22 @@ app.get('/logout', (req, res) => {
         if (err) console.error("❌ Error destroying session:", err);
         console.log(`🚪 User ${user} logged out.`);
         res.clearCookie('connect.sid');
-        res.redirect('/');
+        res.status(200).json({ success: true, message: 'Déconnexion réussie' });
     });
 });
 
 // Middleware d'authentification
-app.use((req, res, next) => {
+function requireAuth(req, res, next) {
     if (req.session && req.session.user) {
         next();
     } else {
         console.log(`🚫 User not authenticated trying to access ${req.path}`);
-        res.redirect('/');
+        res.status(401).json({ success: false, message: 'Non authentifié' });
     }
-});
-
-// Middleware de section
-app.use(sectionMiddleware);
+}
 
 // Routes protégées
-app.get('/dashboard', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
-});
-
-app.get('/get-user', (req, res) => {
+app.get('/get-user', requireAuth, sectionMiddleware, (req, res) => {
     const username = req.session.user;
     const section = req.session.section || 'boys';
     res.json({
@@ -263,7 +252,7 @@ app.get('/get-user', (req, res) => {
     });
 });
 
-app.get('/all-notes', async (req, res) => {
+app.get('/all-notes', requireAuth, sectionMiddleware, async (req, res) => {
     await connectToDatabase();
     const { semester } = req.query;
     const username = req.session.user;
@@ -280,7 +269,7 @@ app.get('/all-notes', async (req, res) => {
     }
 });
 
-app.post('/save-notes', async (req, res) => {
+app.post('/save-notes', requireAuth, sectionMiddleware, async (req, res) => {
     await connectToDatabase();
     const { class: studentClass, subject, studentName, semester, travauxClasse, devoirs, evaluation, examen } = req.body;
     const teacher = req.session.user;
@@ -308,7 +297,7 @@ app.post('/save-notes', async (req, res) => {
     }
 });
 
-app.put('/update-note/:id', async (req, res) => {
+app.put('/update-note/:id', requireAuth, sectionMiddleware, async (req, res) => {
     await connectToDatabase();
     const { id } = req.params;
     const updatedData = req.body;
@@ -334,7 +323,7 @@ app.put('/update-note/:id', async (req, res) => {
     }
 });
 
-app.delete('/delete-note/:id', async (req, res) => {
+app.delete('/delete-note/:id', requireAuth, sectionMiddleware, async (req, res) => {
     await connectToDatabase();
     const { id } = req.params;
     const teacher = req.session.user;
@@ -352,7 +341,7 @@ app.delete('/delete-note/:id', async (req, res) => {
     }
 });
 
-app.post('/generate-word', async (req, res) => {
+app.post('/generate-word', requireAuth, sectionMiddleware, async (req, res) => {
     await connectToDatabase();
     const { semester } = req.query;
     const username = req.session.user;
@@ -424,7 +413,7 @@ app.post('/generate-word', async (req, res) => {
     }
 });
 
-app.get('/generate-excel', async (req, res) => {
+app.get('/generate-excel', requireAuth, sectionMiddleware, async (req, res) => {
     await connectToDatabase();
     const { semester } = req.query;
     const username = req.session.user;
