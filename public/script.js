@@ -446,7 +446,7 @@ function displayTable(data) {
         <thead><tr>
             <th>Classe</th><th>Matière</th><th>Élève</th>
             <th>Travaux Cl.</th><th>Devoirs</th><th>Éval.</th><th>Examen</th>
-            <th>Total</th><th>Actions</th>
+            <th>Total</th><th>Actions</th><th>Saisi Système</th><th>Approuvé</th>
         </tr></thead>
         <tbody></tbody>`;
     const tbody = table.querySelector('tbody');

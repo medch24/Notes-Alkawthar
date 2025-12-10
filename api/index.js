@@ -61,17 +61,22 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// Schéma MongoDB
+// Schéma MongoDB avec nouveaux champs
 const NoteSchema = new mongoose.Schema({
     class: String,
     subject: String,
     studentName: String,
     semester: { type: String, required: true, enum: ['S1', 'S2'] },
+    section: { type: String, required: true, enum: ['boys', 'girls'], default: 'boys' }, // NOUVEAU: Section
     travauxClasse: { type: Number, default: null },
     devoirs: { type: Number, default: null },
     evaluation: { type: Number, default: null },
     examen: { type: Number, default: null },
-    teacher: { type: String }
+    teacher: { type: String },
+    approvedByAdmin: { type: Boolean, default: false }, // NOUVEAU: Approuvé par l'admin
+    enteredInSystem: { type: Boolean, default: false }, // NOUVEAU: Saisi dans le système de l'école
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
 });
 
 let Note;
@@ -190,9 +195,21 @@ async function checkUserPermissionAndSubjectExists(username, classToCheck, subje
     return permissions.some(p => p.subject === subjectToCheck && p.classes.includes(classToCheck));
 }
 
-// Routes publiques - Servir index.html pour toutes les pages
+// Routes publiques
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, '..', 'public', 'home.html'));
+});
+
+app.get('/home.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'home.html'));
+});
+
+app.get('/login.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'login.html'));
+});
+
+app.get('/dashboard.html', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'dashboard.html'));
 });
 
 // Route de login (POST) - mise à jour pour gérer la section depuis le body
@@ -256,11 +273,14 @@ app.get('/all-notes', requireAuth, sectionMiddleware, async (req, res) => {
     await connectToDatabase();
     const { semester } = req.query;
     const username = req.session.user;
+    const section = req.session.section || 'boys';
     if (!semester || !['S1', 'S2'].includes(semester)) {
         return res.status(400).json({ error: 'Le paramètre semester (S1 ou S2) est requis.' });
     }
     try {
         const query = buildMongoQueryForUser(username, semester, req.sectionData.teacherPermissions);
+        // Filtrer par section pour ne pas mélanger garçons et filles
+        query.section = section;
         const notes = await Note.find(query).lean();
         res.status(200).json(notes);
     } catch (error) {
@@ -277,17 +297,22 @@ app.post('/save-notes', requireAuth, sectionMiddleware, async (req, res) => {
         return res.status(403).send(`❌ Permission refusée.`);
     }
     try {
-        const existingNote = await Note.findOne({ class: studentClass, subject, studentName, semester });
+        const section = req.session.section || 'boys';
+        const existingNote = await Note.findOne({ class: studentClass, subject, studentName, semester, section });
         if (existingNote) {
             return res.status(400).send(`❌ Notes déjà existantes pour cet élève.`);
         }
         const note = new Note({
-            class: studentClass, subject, studentName, semester,
+            class: studentClass, subject, studentName, semester, section,
             travauxClasse: travauxClasse === '' ? null : Number(travauxClasse),
             devoirs: devoirs === '' ? null : Number(devoirs),
             evaluation: evaluation === '' ? null : Number(evaluation),
             examen: examen === '' ? null : Number(examen),
-            teacher
+            teacher,
+            approvedByAdmin: false,
+            enteredInSystem: false,
+            createdAt: new Date(),
+            updatedAt: new Date()
         });
         await note.save();
         res.status(200).send('✅ Notes sauvegardées avec succès');
@@ -314,7 +339,20 @@ app.put('/update-note/:id', requireAuth, sectionMiddleware, async (req, res) => 
             if (value === '' || value === null) cleanData[field] = null;
             else if (!isNaN(parseFloat(value))) cleanData[field] = parseFloat(value);
         });
+        
+        // Permettre la mise à jour des statuts (admin et enseignant)
+        if (updatedData.hasOwnProperty('enteredInSystem')) {
+            cleanData.enteredInSystem = Boolean(updatedData.enteredInSystem);
+        }
+        
+        // Seuls les admins peuvent modifier approvedByAdmin
+        const permissions = req.sectionData.teacherPermissions[teacher];
+        if (permissions === 'admin' && updatedData.hasOwnProperty('approvedByAdmin')) {
+            cleanData.approvedByAdmin = Boolean(updatedData.approvedByAdmin);
+        }
+        
         cleanData.teacher = teacher;
+        cleanData.updatedAt = new Date();
         await Note.findByIdAndUpdate(id, cleanData, { new: true });
         res.status(200).send("✅ Note mise à jour.");
     } catch (error) {
@@ -345,10 +383,14 @@ app.post('/generate-word', requireAuth, sectionMiddleware, async (req, res) => {
     await connectToDatabase();
     const { semester } = req.query;
     const username = req.session.user;
+    const section = req.session.section || 'boys';
     try {
         const query = buildMongoQueryForUser(username, semester, req.sectionData.teacherPermissions);
+        // Filtrer par section et exclure les notes approuvées par admin
+        query.section = section;
+        query.approvedByAdmin = { $ne: true }; // Ne pas générer les notes déjà approuvées
         const notes = await Note.find(query).lean();
-        if (notes.length === 0) return res.status(404).send(`❌ Aucune donnée pour le semestre ${semester}.`);
+        if (notes.length === 0) return res.status(404).send(`❌ Aucune donnée non approuvée pour le semestre ${semester}.`);
         
         const templateURL = 'https://cdn.glitch.global/2d2bcfb4-8233-494d-8e48-2d84f224e9d1/Notes%203%20(1)%20(1).docx?v=1748167642949';
         const response = await axios.get(templateURL, { responseType: 'arraybuffer' });
@@ -417,10 +459,14 @@ app.get('/generate-excel', requireAuth, sectionMiddleware, async (req, res) => {
     await connectToDatabase();
     const { semester } = req.query;
     const username = req.session.user;
+    const section = req.session.section || 'boys';
     try {
         const query = buildMongoQueryForUser(username, semester, req.sectionData.teacherPermissions);
+        // Filtrer par section et exclure les notes approuvées
+        query.section = section;
+        query.approvedByAdmin = { $ne: true };
         const notes = await Note.find(query).lean();
-        if (notes.length === 0) return res.status(404).send(`❌ Aucune note pour la génération Excel.`);
+        if (notes.length === 0) return res.status(404).send(`❌ Aucune note non approuvée pour la génération Excel.`);
 
         const wb = XLSX.utils.book_new();
         const allowedOptions = getUserAllowedOptions(username, req.sectionData);
@@ -430,7 +476,7 @@ app.get('/generate-excel', requireAuth, sectionMiddleware, async (req, res) => {
             if (classNotes.length === 0) return;
             
             const wsData = [
-                ['Classe', 'Matière', 'Élève', 'Travaux Classe', 'Devoirs', 'Évaluation', 'Examen', 'Total', 'Enseignant Saisie', 'Enseignant Attitré']
+                ['Classe', 'Matière', 'Élève', 'Travaux Classe', 'Devoirs', 'Évaluation', 'Examen', 'Total', 'Enseignant Saisie', 'Enseignant Attitré', 'Saisi Système', 'Approuvé Admin']
             ];
             classNotes.sort((a,b) => a.studentName.localeCompare(b.studentName) || a.subject.localeCompare(b.subject))
             .forEach(note => {
@@ -438,11 +484,15 @@ app.get('/generate-excel', requireAuth, sectionMiddleware, async (req, res) => {
                 wsData.push([
                     note.class, note.subject, note.studentName,
                     note.travauxClasse ?? '', note.devoirs ?? '', note.evaluation ?? '', note.examen ?? '',
-                    total.toFixed(2), note.teacher || '', getAssignedTeacher(note.subject, note.class, req.sectionData.teacherPermissions)
+                    total ? total.toFixed(2) : '', 
+                    note.teacher || '', 
+                    getAssignedTeacher(note.subject, note.class, req.sectionData.teacherPermissions),
+                    note.enteredInSystem ? 'Oui' : 'Non',
+                    note.approvedByAdmin ? 'Oui' : 'Non'
                 ]);
             });
             const ws = XLSX.utils.aoa_to_sheet(wsData);
-            ws['!cols'] = Array(10).fill({ wch: 20 });
+            ws['!cols'] = Array(12).fill({ wch: 18 });
             XLSX.utils.book_append_sheet(wb, ws, className);
         });
 
