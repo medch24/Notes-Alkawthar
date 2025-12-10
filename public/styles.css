@@ -236,42 +236,6 @@ body::before {
     transform: translateY(-2px);
 }
 
-.info-box {
-    background: linear-gradient(135deg, #E3F2FD, #BBDEFB);
-    border-left: 4px solid #2196F3;
-    padding: 1rem;
-    margin-bottom: 1.5rem;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    animation: fadeIn 0.8s ease-out 0.5s both;
-}
-
-.info-box i {
-    color: #2196F3;
-    font-size: 1.2rem;
-    flex-shrink: 0;
-}
-
-.info-box p {
-    margin: 0;
-    color: #1976D2;
-    font-size: 0.9rem;
-    font-weight: 500;
-    text-align: left;
-}
-
-.girls-section .info-box {
-    background: linear-gradient(135deg, #FCE4EC, #F8BBD0);
-    border-left: 4px solid #E91E63;
-}
-
-.girls-section .info-box i,
-.girls-section .info-box p {
-    color: #C2185B;
-}
-
 .checkbox-label {
     display: flex;
     align-items: center;
