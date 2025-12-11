@@ -67,7 +67,7 @@ const NoteSchema = new mongoose.Schema({
     subject: String,
     studentName: String,
     semester: { type: String, required: true, enum: ['S1', 'S2'] },
-    section: { type: String, required: true, enum: ['boys', 'girls'], default: 'boys' }, // NOUVEAU: Section
+    section: { type: String, required: false, enum: ['boys', 'girls'], default: 'boys' }, // Section (non requis pour compatibilité)
     travauxClasse: { type: Number, default: null },
     devoirs: { type: Number, default: null },
     evaluation: { type: Number, default: null },
@@ -509,6 +509,27 @@ app.post('/generate-excel', requireAuth, sectionMiddleware, async (req, res) => 
     } catch (error) {
         console.error("❌ Error generating Excel file:", error);
         res.status(500).send("❌ Erreur serveur.");
+    }
+});
+
+// Route de migration pour ajouter le champ section aux anciennes notes
+app.post('/migrate-old-notes', requireAuth, async (req, res) => {
+    await connectToDatabase();
+    try {
+        // Mettre à jour toutes les notes sans section pour les mettre en 'boys' par défaut
+        const result = await Note.updateMany(
+            { section: { $exists: false } },
+            { $set: { section: 'boys', approvedByAdmin: false, enteredInSystem: false } }
+        );
+        
+        console.log(`✅ Migration: ${result.modifiedCount} notes mises à jour`);
+        res.status(200).json({ 
+            success: true, 
+            message: `${result.modifiedCount} notes migrées avec succès` 
+        });
+    } catch (error) {
+        console.error('❌ Error during migration:', error);
+        res.status(500).json({ success: false, message: 'Erreur lors de la migration' });
     }
 });
 

@@ -431,7 +431,7 @@ function updateSortStudentOptionsForFilterClass(filterClass) {
 }
 
 // ====================================
-// AFFICHAGE DU TABLEAU
+// AFFICHAGE DU TABLEAU AVEC MODIFICATION INLINE
 // ====================================
 function displayNotesTable(notes) {
     if (notes.length === 0) {
@@ -473,34 +473,48 @@ function displayNotesTable(notes) {
         
         const totalDisplay = (tc === '' && dev === '' && eva === '' && exam === '') ? '' : total.toFixed(2);
         
-        // Checkbox "Saisi" - toujours visible et modifiable par l'enseignant
+        // Checkbox "Saisi" - toujours visible et modifiable
         const enteredChecked = note.enteredInSystem ? 'checked' : '';
-        const enteredCheckbox = `<input type="checkbox" ${enteredChecked} onchange="toggleEnteredInSystem('${note._id}', this.checked)" title="Marquer comme saisi dans le système">`;
+        const enteredCheckbox = `<input type="checkbox" ${enteredChecked} onchange="toggleEnteredInSystem('${note._id}', this.checked)" title="Marquer comme saisi">`;
         
         // Checkbox "Approuvé" - visible et modifiable uniquement par les admins
         let approvedCheckbox = '';
         if (isAdmin) {
             const approvedChecked = note.approvedByAdmin ? 'checked' : '';
-            approvedCheckbox = `<td><input type="checkbox" ${approvedChecked} onchange="toggleApprovedByAdmin('${note._id}', this.checked)" title="Approuver cette note"></td>`;
+            approvedCheckbox = `<td><input type="checkbox" ${approvedChecked} onchange="toggleApprovedByAdmin('${note._id}', this.checked)" title="Approuver"></td>`;
         }
         
+        // Inputs éditables inline pour les notes
+        const tcInput = `<input type="number" value="${tc}" placeholder="-" min="0" step="0.01" 
+            onchange="updateNoteField('${note._id}', 'travauxClasse', this.value)" 
+            style="width: 60px; padding: 0.3rem; border: 1px solid #ddd; border-radius: 4px; text-align: center;">`;
+        
+        const devInput = `<input type="number" value="${dev}" placeholder="-" min="0" step="0.01" 
+            onchange="updateNoteField('${note._id}', 'devoirs', this.value)" 
+            style="width: 60px; padding: 0.3rem; border: 1px solid #ddd; border-radius: 4px; text-align: center;">`;
+        
+        const evaInput = `<input type="number" value="${eva}" placeholder="-" min="0" step="0.01" 
+            onchange="updateNoteField('${note._id}', 'evaluation', this.value)" 
+            style="width: 60px; padding: 0.3rem; border: 1px solid #ddd; border-radius: 4px; text-align: center;">`;
+        
+        const examInput = `<input type="number" value="${exam}" placeholder="-" min="0" step="0.01" 
+            onchange="updateNoteField('${note._id}', 'examen', this.value)" 
+            style="width: 60px; padding: 0.3rem; border: 1px solid #ddd; border-radius: 4px; text-align: center;">`;
+        
         tableHTML += `
-            <tr>
+            <tr id="note-row-${note._id}">
                 <td>${note.class}</td>
                 <td>${note.subject}</td>
                 <td>${note.studentName}</td>
-                <td>${tc}</td>
-                <td>${dev}</td>
-                <td>${eva}</td>
-                <td>${exam}</td>
-                <td><strong>${totalDisplay}</strong></td>
+                <td>${tcInput}</td>
+                <td>${devInput}</td>
+                <td>${evaInput}</td>
+                <td>${examInput}</td>
+                <td><strong id="total-${note._id}">${totalDisplay}</strong></td>
                 <td>${enteredCheckbox}</td>
                 ${approvedCheckbox}
                 <td>
-                    <button onclick="editNote('${note._id}')" style="background: #2196F3; color: white; margin-right: 0.5rem;">
-                        <i class="fas fa-edit"></i> Modifier
-                    </button>
-                    <button onclick="deleteNote('${note._id}')" style="background: #F44336; color: white;">
+                    <button onclick="deleteNote('${note._id}')" style="background: #F44336; color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer;">
                         <i class="fas fa-trash"></i> Supprimer
                     </button>
                 </td>
@@ -566,27 +580,69 @@ window.toggleApprovedByAdmin = async function(noteId, isApproved) {
 };
 
 // ====================================
-// MODIFICATION ET SUPPRESSION
+// MODIFICATION INLINE DES NOTES
 // ====================================
-window.editNote = function(noteId) {
-    const note = allNotesData.find(n => n._id === noteId);
-    if (!note) return;
+window.updateNoteField = async function(noteId, field, value) {
+    // Convertir valeur vide en null
+    const cleanValue = value === '' || value === null ? null : parseFloat(value);
     
-    classSelect.value = note.class;
-    updateFormOnClassChange();
+    const updateData = {};
+    updateData[field] = cleanValue;
     
-    setTimeout(() => {
-        subjectSelect.value = note.subject;
-        studentSelect.value = note.studentName;
-        travauxClasseInput.value = note.travauxClasse ?? '';
-        devoirsInput.value = note.devoirs ?? '';
-        evaluationInput.value = note.evaluation ?? '';
-        examenInput.value = note.examen ?? '';
+    try {
+        const response = await fetch(`/update-note/${noteId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updateData)
+        });
         
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 100);
+        if (response.ok) {
+            console.log(`✅ Note ${noteId} - ${field} mis à jour: ${cleanValue}`);
+            
+            // Mettre à jour le total localement sans recharger toute la page
+            const note = allNotesData.find(n => n._id === noteId);
+            if (note) {
+                note[field] = cleanValue;
+                updateTotal(noteId, note);
+            }
+        } else {
+            const error = await response.text();
+            alert(`Erreur: ${error}`);
+            fetchAndDisplayData(); // Recharger en cas d'erreur
+        }
+    } catch (error) {
+        console.error('Error updating note field:', error);
+        alert('Erreur réseau');
+        fetchAndDisplayData();
+    }
 };
 
+// Fonction pour mettre à jour le total d'une note
+function updateTotal(noteId, note) {
+    let total = 0;
+    const tc = note.travauxClasse ?? 0;
+    const dev = note.devoirs ?? 0;
+    const eva = note.evaluation ?? 0;
+    const exam = note.examen ?? 0;
+    
+    // Ne calculer que si au moins une note existe
+    const hasAnyNote = note.travauxClasse !== null || note.devoirs !== null || 
+                       note.evaluation !== null || note.examen !== null;
+    
+    if (hasAnyNote) {
+        total = tc + dev + eva + exam;
+    }
+    
+    const totalDisplay = hasAnyNote ? total.toFixed(2) : '';
+    const totalElement = document.getElementById(`total-${noteId}`);
+    if (totalElement) {
+        totalElement.textContent = totalDisplay;
+    }
+}
+
+// ====================================
+// SUPPRESSION DE NOTES
+// ====================================
 window.deleteNote = async function(noteId) {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette note ?')) return;
     
@@ -599,7 +655,8 @@ window.deleteNote = async function(noteId) {
             showFormMessage(formSuccessMessage, '✅ Note supprimée avec succès !', false);
             fetchAndDisplayData();
         } else {
-            alert('Erreur lors de la suppression');
+            const error = await response.text();
+            alert(`Erreur: ${error}`);
         }
     } catch (error) {
         console.error('Error deleting note:', error);
