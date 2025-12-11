@@ -381,7 +381,7 @@ app.delete('/delete-note/:id', requireAuth, sectionMiddleware, async (req, res) 
 
 app.post('/generate-word', requireAuth, sectionMiddleware, async (req, res) => {
     await connectToDatabase();
-    const { semester } = req.query;
+    const { semester } = req.body;
     const username = req.session.user;
     const section = req.session.section || 'boys';
     try {
@@ -455,9 +455,9 @@ app.post('/generate-word', requireAuth, sectionMiddleware, async (req, res) => {
     }
 });
 
-app.get('/generate-excel', requireAuth, sectionMiddleware, async (req, res) => {
+app.post('/generate-excel', requireAuth, sectionMiddleware, async (req, res) => {
     await connectToDatabase();
-    const { semester } = req.query;
+    const { semester } = req.body;
     const username = req.session.user;
     const section = req.session.section || 'boys';
     try {
