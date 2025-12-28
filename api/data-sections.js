@@ -6,6 +6,9 @@
 // Note: Pour les enseignants, le login et le mot de passe sont identiques au nom
 const teacherPermissionsBoys = {
     'Mohamed': 'admin',
+    'Mohamed Teacher': [
+        { subject: 'Physique-Chimie', classes: ['DP2'] }
+    ],
     'Abas': [
         { subject: 'L.L', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'DP2'] }
     ],
