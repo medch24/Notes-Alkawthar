@@ -6,34 +6,26 @@
 // Note: Pour les enseignants, le login et le mot de passe sont identiques au nom
 const teacherPermissionsBoys = {
     'Mohamed': 'admin',
-    'Mohamed Ali': [
-        { subject: 'P.E', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'DP2'] }
-    ],
-    'Sami': [
-        { subject: 'Musique', classes: ['PEI1', 'PEI2', 'PEI3'] },
-        { subject: 'ART', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'DP2'] }
-    ],
     'Abas': [
-        { subject: 'L.L', classes: ['PEI1','PEI2', 'PEI3', 'PEI4', 'DP2'] },
-        { subject: 'I.S', classes: ['PEI4'] }
+        { subject: 'L.L', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'DP2'] }
     ],
     'Sylvano': [
-        { subject: 'Maths', classes: ['PEI3', 'PEI4', 'DP2'] },
-        { subject: 'I.S', classes: ['PEI1', 'PEI2', 'DP2'] }
+        { subject: 'Maths', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4'] },
+        { subject: 'Physique-Chimie', classes: ['PEI4'] }
     ],
     'Zine': [
-        { subject: 'Sciences', classes: ['PEI1'] },
         { subject: 'Biologie', classes: ['PEI2', 'PEI3', 'PEI4', 'DP2'] },
-        { subject: 'E.S', classes: ['DP2'] }
+        { subject: 'E.S', classes: ['DP2'] },
+        { subject: 'Sciences', classes: ['PEI1'] }
     ],
-    'Morched': [
-        { subject: 'Physique-Chimie', classes: ['PEI2', 'PEI3', 'PEI4', 'DP2'] },
-        { subject: 'Maths', classes: ['PEI1', 'PEI2'] }
+    'Youssif': [
+        { subject: 'I.S', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'DP2'] },
+        { subject: 'S.E.S', classes: ['DP2'] }
     ],
     'Tonga': [
         { subject: 'Design', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4'] },
-        { subject: 'I.S', classes: ['PEI3'] },
-        { subject: 'S.E.S', classes: ['DP2'] }
+        { subject: 'Maths', classes: ['DP2'] },
+        { subject: 'Physique-Chimie', classes: ['PEI2', 'PEI3'] }
     ],
     'Kamel': [
         { subject: 'Anglais', classes: ['PEI1', 'PEI2', 'PEI3', 'PEI4', 'DP2'] }
