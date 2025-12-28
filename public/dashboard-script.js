@@ -252,8 +252,11 @@ function updateStudentSelection() {
         } else {
             hideAutoProgressInfo();
         }
+        // Charger les notes existantes pour cet élève
+        loadExistingNotesForStudent();
     } else {
         hideAutoProgressInfo();
+        clearNoteInputs();
     }
 }
 
@@ -270,12 +273,14 @@ function moveToNextStudent() {
         } else {
             hideAutoProgressInfo();
         }
+        // Charger les notes existantes pour le prochain élève
+        loadExistingNotesForStudent();
     } else {
         currentStudentIndex = currentStudentsList.length;
         studentSelect.value = '';
         hideAutoProgressInfo();
+        clearNoteInputs();
     }
-    clearNoteInputs();
 }
 
 function showAutoProgressInfo() {
@@ -298,6 +303,49 @@ function clearNoteInputs() {
     devoirsInput.value = '';
     evaluationInput.value = '';
     examenInput.value = '';
+    // Retirer l'attribut data-note-id quand on efface les champs
+    document.getElementById('noteForm').removeAttribute('data-note-id');
+}
+
+// Nouvelle fonction pour charger les notes existantes
+function loadExistingNotesForStudent() {
+    const selectedClass = classSelect.value;
+    const selectedSubject = subjectSelect.value;
+    const selectedStudent = studentSelect.value;
+    
+    if (!selectedClass || !selectedSubject || !selectedStudent || !currentSemester) {
+        clearNoteInputs();
+        return;
+    }
+    
+    // Chercher une note existante pour cet élève, cette matière et cette classe
+    const existingNote = allNotesData.find(note => 
+        note.class === selectedClass &&
+        note.subject === selectedSubject &&
+        note.studentName === selectedStudent &&
+        note.semester === currentSemester
+    );
+    
+    if (existingNote) {
+        // Remplir les champs avec les notes existantes
+        travauxClasseInput.value = existingNote.travauxClasse !== null ? existingNote.travauxClasse : '';
+        devoirsInput.value = existingNote.devoirs !== null ? existingNote.devoirs : '';
+        evaluationInput.value = existingNote.evaluation !== null ? existingNote.evaluation : '';
+        examenInput.value = existingNote.examen !== null ? existingNote.examen : '';
+        
+        // Stocker l'ID de la note pour permettre la mise à jour
+        document.getElementById('noteForm').setAttribute('data-note-id', existingNote._id);
+        
+        // Afficher un message informatif
+        showFormMessage(
+            document.getElementById('formInfoMessage') || formSuccessMessage, 
+            '📝 Notes existantes chargées. Vous pouvez les modifier.', 
+            false
+        );
+    } else {
+        // Aucune note existante, effacer les champs
+        clearNoteInputs();
+    }
 }
 
 function updateLimits() {
@@ -345,21 +393,42 @@ async function handleFormSubmit(e) {
         examen: examenInput.value === '' ? null : parseFloat(examenInput.value)
     };
     
+    // Vérifier s'il s'agit d'une mise à jour ou d'une création
+    const noteId = document.getElementById('noteForm').getAttribute('data-note-id');
+    
     try {
-        const response = await fetch('/save-notes', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(noteData)
-        });
+        let response;
+        
+        if (noteId) {
+            // Mise à jour d'une note existante
+            response = await fetch(`/update-note/${noteId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(noteData)
+            });
+        } else {
+            // Création d'une nouvelle note
+            response = await fetch('/save-notes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(noteData)
+            });
+        }
         
         if (response.ok) {
-            showFormMessage(formSuccessMessage, '✅ Note enregistrée avec succès !', false);
+            const action = noteId ? 'mise à jour' : 'enregistrement';
+            showFormMessage(formSuccessMessage, `✅ Note ${action === 'mise à jour' ? 'mise à jour' : 'enregistrée'} avec succès !`, false);
             fetchAndDisplayData();
             
             if (autoProgressEnabled) {
                 setTimeout(() => {
                     moveToNextStudent();
                 }, 1000);
+            } else {
+                // Si pas en mode auto, effacer les champs après sauvegarde
+                setTimeout(() => {
+                    clearNoteInputs();
+                }, 1500);
             }
         } else {
             const error = await response.text();

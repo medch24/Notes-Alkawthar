@@ -594,8 +594,12 @@
     font-size: 1.1rem;
     font-weight: 600;
     color: #333;
-    transition: all 0.3s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
     text-align: center;
+    /* Prévenir les vibrations et changements de layout */
+    will-change: border-color, box-shadow;
+    backface-visibility: hidden;
+    -webkit-font-smoothing: antialiased;
 }
 
 .modern-input:hover {
@@ -606,7 +610,7 @@
     outline: none;
     border-color: #667eea;
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    transform: scale(1.02);
+    /* Supprimer le scale qui cause des vibrations */
 }
 
 /* ===== MESSAGES ===== */
@@ -834,16 +838,19 @@
     border-bottom: 1px solid #e0e0e0;
     color: #555;
     font-size: 0.95rem;
-    transition: all 0.3s ease;
+    /* Supprimer la transition qui cause des vibrations */
+    backface-visibility: hidden;
+    -webkit-font-smoothing: antialiased;
 }
 
 .output-modern tr {
-    transition: all 0.3s ease;
+    /* Supprimer les transitions qui causent des vibrations */
+    backface-visibility: hidden;
 }
 
 .output-modern tr:hover {
     background: linear-gradient(135deg, #f8f9fa 0%, #e3f2fd 100%);
-    transform: scale(1.01);
+    /* Supprimer le scale qui cause des vibrations */
 }
 
 .output-modern tr:hover td {
