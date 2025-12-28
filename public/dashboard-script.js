@@ -143,25 +143,6 @@ function populatePermissionBasedDropdowns() {
     updateSortStudentOptionsForFilterClass('');
 }
 
-// Nouvelle fonction pour mettre à jour les matières du filtre basé sur les notes existantes
-function updateFilterSubjectsBasedOnNotes() {
-    if (!allNotesData || allNotesData.length === 0) return;
-    
-    // Extraire les matières uniques des notes existantes
-    const subjectsWithNotes = new Set();
-    allNotesData.forEach(note => {
-        if (currentUserPermissions.subjects.includes(note.subject)) {
-            subjectsWithNotes.add(note.subject);
-        }
-    });
-    
-    // Mettre à jour le select des matières du filtre
-    clearSelectOptions(sortSubjectSelect, 'Toutes les Matières');
-    Array.from(subjectsWithNotes).sort().forEach(subj => {
-        addOption(sortSubjectSelect, subj, subj);
-    });
-}
-
 // ====================================
 // CONFIGURATION DES EVENT LISTENERS
 // ====================================
@@ -473,9 +454,6 @@ async function fetchAndDisplayData() {
         
         allNotesData = await response.json();
         console.log(`📊 ${allNotesData.length} notes chargées pour ${currentSemester}`);
-        
-        // Mettre à jour les filtres de matières basés sur les notes existantes
-        updateFilterSubjectsBasedOnNotes();
         
         // Ne pas afficher le tableau automatiquement, attendre qu'un filtre soit appliqué
         displayInitialMessage();
