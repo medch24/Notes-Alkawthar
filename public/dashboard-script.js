@@ -143,6 +143,25 @@ function populatePermissionBasedDropdowns() {
     updateSortStudentOptionsForFilterClass('');
 }
 
+// Nouvelle fonction pour mettre à jour les matières du filtre basé sur les notes existantes
+function updateFilterSubjectsBasedOnNotes() {
+    if (!allNotesData || allNotesData.length === 0) return;
+    
+    // Extraire les matières uniques des notes existantes
+    const subjectsWithNotes = new Set();
+    allNotesData.forEach(note => {
+        if (currentUserPermissions.subjects.includes(note.subject)) {
+            subjectsWithNotes.add(note.subject);
+        }
+    });
+    
+    // Mettre à jour le select des matières du filtre
+    clearSelectOptions(sortSubjectSelect, 'Toutes les Matières');
+    Array.from(subjectsWithNotes).sort().forEach(subj => {
+        addOption(sortSubjectSelect, subj, subj);
+    });
+}
+
 // ====================================
 // CONFIGURATION DES EVENT LISTENERS
 // ====================================
@@ -454,17 +473,39 @@ async function fetchAndDisplayData() {
         
         allNotesData = await response.json();
         console.log(`📊 ${allNotesData.length} notes chargées pour ${currentSemester}`);
-        filterAndDisplayNotes();
+        
+        // Mettre à jour les filtres de matières basés sur les notes existantes
+        updateFilterSubjectsBasedOnNotes();
+        
+        // Ne pas afficher le tableau automatiquement, attendre qu'un filtre soit appliqué
+        displayInitialMessage();
     } catch (error) {
         console.error('Error fetching notes:', error);
         outputDiv.innerHTML = '<p style="color: red;">❌ Erreur lors du chargement des notes</p>';
     }
 }
 
+// Nouvelle fonction pour afficher un message initial
+function displayInitialMessage() {
+    outputDiv.innerHTML = `
+        <div style="text-align: center; padding: 3rem; color: #666;">
+            <i class="fas fa-filter" style="font-size: 3rem; color: #667eea; margin-bottom: 1rem;"></i>
+            <h3 style="margin-bottom: 0.5rem; color: #333;">Sélectionnez un filtre</h3>
+            <p>Utilisez les filtres ci-dessus (Classe, Matière ou Élève) pour afficher les notes.</p>
+        </div>
+    `;
+}
+
 function filterAndDisplayNotes() {
     const filterClass = sortClassSelect.value;
     const filterSubject = sortSubjectSelect.value;
     const filterStudent = sortStudentSelect.value;
+    
+    // Si aucun filtre n'est sélectionné, afficher le message initial
+    if (!filterClass && !filterSubject && !filterStudent) {
+        displayInitialMessage();
+        return;
+    }
     
     let filteredNotes = allNotesData.filter(note => {
         return (!filterClass || note.class === filterClass) &&
