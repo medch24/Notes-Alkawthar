@@ -40,7 +40,7 @@ const studentsByClassBoys = {
     PEI2: ["Ahmed Bouaziz", "Ali Kotbi", "Eyad Hassan", "Yasser Younes"],
     PEI3: ["Adam Kaaki", "Ahmad Mahayni", "Mohamed Chalak", "Seifeddine Ayadi", "Wajih Sabadine"],
     PEI4: ["Abdulrahman Bouaziz", "Mohamed Amine Sgheir", "Mohamed Younes", "Samir Kaaki", "Youssef Baakak"],
-    DP2: ["Habib Lteif", "Mahdi Karimi", "Salah Boumalouga"]
+    DP2: ["Habib Lteif", "Salah Boumalouga"]
 };
 
 // --- Section Filles ---
