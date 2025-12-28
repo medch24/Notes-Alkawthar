@@ -13,7 +13,7 @@ Application web moderne pour la gestion des notes scolaires avec support de deux
 
 #### Section Garçons
 - Classes: PEI1, PEI2, PEI3, PEI4, DP2
-- Enseignants: Abas, Sylvano (Hervé), Zine, Youssif, Tonga, Kamel
+- Enseignants: Mohamed Ali (P.E), Sami (Musique, ART), Abas, Sylvano (Hervé), Zine, Youssif, Tonga, Kamel, Mohamed Teacher (Physique-Chimie DP2)
 - Admin: Mohamed
 
 #### Section Filles
