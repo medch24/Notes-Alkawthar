@@ -425,21 +425,36 @@ app.post('/generate-word', requireAuth, sectionMiddleware, async (req, res) => {
         }, {});
 
         // Ordre spécifique des matières pour la génération Word
-        const subjectOrder = [
-            'Langue et litt',
-            'Philosophie',
-            'Société indi',
-            'Maths',
-            'Sciences',
-            'Biologie',
-            'Physique chimie',
-            'Design',
-            'SES',
-            'SNT',
-            'ART',
-            'Musique',
-            'PE'
-        ];
+        // Map des noms de matières avec leurs variantes
+        const subjectOrderMap = {
+            'Langue et litt': ['Langue et litt', 'L.L', 'Langue', 'Littérature', 'Français'],
+            'Philosophie': ['Philosophie', 'Philo'],
+            'Société indi': ['Société indi', 'Société', 'Individu et société', 'I.S'],
+            'Maths': ['Maths', 'Mathématiques', 'Math'],
+            'Sciences': ['Sciences', 'Science'],
+            'Biologie': ['Biologie', 'Bio'],
+            'Physique chimie': ['Physique chimie', 'Physique-Chimie', 'PC'],
+            'Design': ['Design'],
+            'SES': ['SES', 'Sciences économiques'],
+            'SNT': ['SNT'],
+            'ART': ['ART', 'Arts', 'Art'],
+            'Musique': ['Musique', 'Music'],
+            'PE': ['PE', 'P.E', 'Sport', 'EPS'],
+            'Anglais': ['Anglais', 'English', 'Ang']
+        };
+        
+        // Fonction pour trouver la position d'une matière dans l'ordre
+        const getSubjectOrder = (subjectName) => {
+            const entries = Object.entries(subjectOrderMap);
+            for (let i = 0; i < entries.length; i++) {
+                const [key, variants] = entries[i];
+                if (variants.some(v => subjectName.toLowerCase() === v.toLowerCase() || 
+                                       subjectName.toLowerCase().includes(v.toLowerCase()))) {
+                    return i;
+                }
+            }
+            return 999; // Matières non listées à la fin
+        };
 
         for (const className in notesByClass) {
             const classStudentList = req.sectionData.studentsByClass[className] || [];
@@ -455,19 +470,13 @@ app.post('/generate-word', requireAuth, sectionMiddleware, async (req, res) => {
 
             // Trier les matières selon l'ordre spécifié
             const sortedSubjects = subjectsToInclude.sort((a, b) => {
-                const indexA = subjectOrder.findIndex(s => a.toLowerCase().includes(s.toLowerCase()));
-                const indexB = subjectOrder.findIndex(s => b.toLowerCase().includes(s.toLowerCase()));
+                const orderA = getSubjectOrder(a);
+                const orderB = getSubjectOrder(b);
                 
-                // Si les deux matières sont dans l'ordre défini
-                if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-                
-                // Si seulement A est dans l'ordre, A vient en premier
-                if (indexA !== -1) return -1;
-                
-                // Si seulement B est dans l'ordre, B vient en premier
-                if (indexB !== -1) return 1;
-                
-                // Si aucune n'est dans l'ordre, tri alphabétique
+                // Trier par ordre, puis alphabétiquement si même ordre
+                if (orderA !== orderB) {
+                    return orderA - orderB;
+                }
                 return a.localeCompare(b);
             });
 

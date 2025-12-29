@@ -543,7 +543,14 @@ async function handleCheckboxChange(row, checkbox, event) {
     const field = checkbox.dataset.field;
     const value = checkbox.checked;
     
-    console.log('🔵 Envoi de la requête de mise à jour...');
+    // Sauvegarder les filtres actuels pour les restaurer après
+    const savedFilters = {
+        class: sortClassSelect.value,
+        subject: sortSubjectSelect.value,
+        student: sortStudentSelect.value
+    };
+    
+    console.log('🔵 Envoi de la requête de mise à jour...', { filtres: savedFilters });
     
     try {
         const response = await fetch(`/update-note/${noteId}`, {
@@ -564,6 +571,26 @@ async function handleCheckboxChange(row, checkbox, event) {
             if (noteIndex !== -1) {
                 allNotesData[noteIndex][field] = value;
             }
+            
+            // IMPORTANT: Restaurer les filtres si jamais ils ont été modifiés
+            setTimeout(() => {
+                if (sortClassSelect.value !== savedFilters.class || 
+                    sortSubjectSelect.value !== savedFilters.subject || 
+                    sortStudentSelect.value !== savedFilters.student) {
+                    console.log('⚠️ Filtres modifiés détectés ! Restauration...', {
+                        avant: savedFilters,
+                        après: {
+                            class: sortClassSelect.value,
+                            subject: sortSubjectSelect.value,
+                            student: sortStudentSelect.value
+                        }
+                    });
+                    sortClassSelect.value = savedFilters.class;
+                    sortSubjectSelect.value = savedFilters.subject;
+                    sortStudentSelect.value = savedFilters.student;
+                    applyFiltersAndDisplayTable();
+                }
+            }, 100);
             
             console.log(`✅ ${field} mis à jour pour la note ${noteId} - Tableau NON rechargé`);
         } else {
