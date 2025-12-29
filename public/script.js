@@ -483,10 +483,17 @@ function displayTable(data) {
             
             inputs.forEach(input => input.addEventListener('input', () => updateRowTotal(row)));
             
-            // Gérer les changements de checkboxes
+            // Gérer les changements de checkboxes avec stopPropagation
             const checkboxes = row.querySelectorAll('input[type="checkbox"]');
             checkboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', () => handleCheckboxChange(row, checkbox));
+                checkbox.addEventListener('change', (event) => {
+                    event.stopPropagation(); // Empêcher la propagation immédiatement
+                    handleCheckboxChange(row, checkbox, event);
+                });
+                // Empêcher aussi le clic de se propager
+                checkbox.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                });
             });
         });
     
@@ -500,7 +507,13 @@ function updateRowTotal(row) {
 }
 
 // Gérer les changements de checkboxes sans rafraîchir le tableau
-async function handleCheckboxChange(row, checkbox) {
+async function handleCheckboxChange(row, checkbox, event) {
+    // IMPORTANT: Empêcher la propagation de l'événement pour éviter les conflits
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    
     const noteId = row.dataset.noteId;
     const field = checkbox.dataset.field;
     const value = checkbox.checked;
@@ -522,11 +535,14 @@ async function handleCheckboxChange(row, checkbox) {
             if (noteIndex !== -1) {
                 allNotesData[noteIndex][field] = value;
             }
+            
+            console.log(`✅ ${field} mis à jour pour la note ${noteId}`);
         } else {
             alert('Erreur de sauvegarde du statut.');
             checkbox.checked = !value; // Revenir à l'état précédent
         }
     } catch (error) {
+        console.error('Erreur lors de la sauvegarde:', error);
         alert('Erreur réseau lors de la sauvegarde du statut.');
         checkbox.checked = !value; // Revenir à l'état précédent
     }
@@ -540,7 +556,8 @@ outputDiv.addEventListener('click', async (e) => {
 
     if (e.target.classList.contains('save-button')) {
         const payload = {};
-        row.querySelectorAll('input[data-field]').forEach(input => {
+        // Ne sélectionner que les inputs numériques, pas les checkboxes
+        row.querySelectorAll('input[data-field]:not([type="checkbox"])').forEach(input => {
             payload[input.dataset.field] = input.value || null;
         });
         fetch(`/update-note/${noteId}`, {
