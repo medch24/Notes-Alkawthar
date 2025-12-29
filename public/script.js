@@ -398,12 +398,14 @@ function updateSortStudentOptionsForFilterClass(selectedClass) {
 }
 
 async function fetchAndDisplayData() {
+    console.log('🟡 fetchAndDisplayData appelé - TRACE:', new Error().stack);
     if (!currentSemester) return;
     outputDiv.innerHTML = "<p>Chargement...</p>";
     try {
         const response = await fetch(`/all-notes?semester=${currentSemester}`);
         if (!response.ok) throw new Error(`Erreur ${response.status}`);
         allNotesData = await response.json();
+        console.log(`📊 ${allNotesData.length} notes chargées pour ${currentSemester}`);
         showFilterMessage();
     } catch (error) {
         outputDiv.innerHTML = `<p class="error">Impossible de charger les notes.</p>`;
@@ -411,6 +413,7 @@ async function fetchAndDisplayData() {
 }
 
 function showFilterMessage() {
+    console.log('🟡 showFilterMessage appelé - Effacement du tableau');
     outputDiv.innerHTML = `<div class="filter-message">
         <i class="fas fa-filter"></i>
         <h3>Sélectionnez des filtres pour afficher les notes</h3>
@@ -419,6 +422,12 @@ function showFilterMessage() {
 }
 
 function applyFiltersAndDisplayTable() {
+    console.log('🟢 applyFiltersAndDisplayTable appelé', { 
+        class: sortClassSelect.value, 
+        subject: sortSubjectSelect.value, 
+        student: sortStudentSelect.value 
+    });
+    
     const hasFilter = sortClassSelect.value || sortSubjectSelect.value || sortStudentSelect.value;
     
     if (!hasFilter) {
@@ -486,14 +495,27 @@ function displayTable(data) {
             // Gérer les changements de checkboxes avec stopPropagation
             const checkboxes = row.querySelectorAll('input[type="checkbox"]');
             checkboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', (event) => {
-                    event.stopPropagation(); // Empêcher la propagation immédiatement
-                    handleCheckboxChange(row, checkbox, event);
-                });
-                // Empêcher aussi le clic de se propager
+                // Utiliser la capture d'événement pour empêcher toute propagation
+                checkbox.addEventListener('change', async (event) => {
+                    event.stopPropagation();
+                    event.stopImmediatePropagation(); // Empêcher même les autres listeners
+                    await handleCheckboxChange(row, checkbox, event);
+                }, true); // true = phase de capture
+                
+                // Empêcher tous les événements de clic
                 checkbox.addEventListener('click', (event) => {
                     event.stopPropagation();
-                });
+                    event.stopImmediatePropagation();
+                }, true);
+                
+                // Empêcher aussi les événements mousedown et mouseup
+                checkbox.addEventListener('mousedown', (event) => {
+                    event.stopPropagation();
+                }, true);
+                
+                checkbox.addEventListener('mouseup', (event) => {
+                    event.stopPropagation();
+                }, true);
             });
         });
     
@@ -508,9 +530,12 @@ function updateRowTotal(row) {
 
 // Gérer les changements de checkboxes sans rafraîchir le tableau
 async function handleCheckboxChange(row, checkbox, event) {
+    console.log('🔵 handleCheckboxChange appelé', { noteId: row.dataset.noteId, field: checkbox.dataset.field, checked: checkbox.checked });
+    
     // IMPORTANT: Empêcher la propagation de l'événement pour éviter les conflits
     if (event) {
         event.stopPropagation();
+        event.stopImmediatePropagation();
         event.preventDefault();
     }
     
@@ -518,12 +543,16 @@ async function handleCheckboxChange(row, checkbox, event) {
     const field = checkbox.dataset.field;
     const value = checkbox.checked;
     
+    console.log('🔵 Envoi de la requête de mise à jour...');
+    
     try {
         const response = await fetch(`/update-note/${noteId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ [field]: value })
         });
+        
+        console.log('🔵 Réponse reçue:', response.status);
         
         if (response.ok) {
             // Feedback visuel temporaire
@@ -536,16 +565,19 @@ async function handleCheckboxChange(row, checkbox, event) {
                 allNotesData[noteIndex][field] = value;
             }
             
-            console.log(`✅ ${field} mis à jour pour la note ${noteId}`);
+            console.log(`✅ ${field} mis à jour pour la note ${noteId} - Tableau NON rechargé`);
         } else {
+            console.error('❌ Erreur de sauvegarde:', response.status);
             alert('Erreur de sauvegarde du statut.');
             checkbox.checked = !value; // Revenir à l'état précédent
         }
     } catch (error) {
-        console.error('Erreur lors de la sauvegarde:', error);
+        console.error('❌ Erreur lors de la sauvegarde:', error);
         alert('Erreur réseau lors de la sauvegarde du statut.');
         checkbox.checked = !value; // Revenir à l'état précédent
     }
+    
+    console.log('🔵 handleCheckboxChange terminé');
 }
 
 // Actions du tableau
