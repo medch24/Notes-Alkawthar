@@ -469,13 +469,25 @@ function displayTable(data) {
                 <td class="actions-cell">
                     <button class="save-button">Enr.</button>
                     <button class="delete-button">Sup.</button>
+                </td>
+                <td class="checkbox-cell">
+                    <input type="checkbox" data-field="enteredInSystem" ${note.enteredInSystem ? 'checked' : ''}>
+                </td>
+                <td class="checkbox-cell">
+                    <input type="checkbox" data-field="approvedByAdmin" ${note.approvedByAdmin ? 'checked' : ''}>
                 </td>`;
             
-            const inputs = row.querySelectorAll('input[data-field]');
+            const inputs = row.querySelectorAll('input[data-field]:not([type="checkbox"])');
             inputs.forEach(input => total += parseFloat(input.value || 0));
             row.querySelector('.total-cell').textContent = total.toFixed(2);
             
             inputs.forEach(input => input.addEventListener('input', () => updateRowTotal(row)));
+            
+            // Gérer les changements de checkboxes
+            const checkboxes = row.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', () => handleCheckboxChange(row, checkbox));
+            });
         });
     
     outputDiv.appendChild(table);
@@ -483,8 +495,41 @@ function displayTable(data) {
 
 function updateRowTotal(row) {
     let total = 0;
-    row.querySelectorAll('input[data-field]').forEach(input => total += parseFloat(input.value || 0));
+    row.querySelectorAll('input[data-field]:not([type="checkbox"])').forEach(input => total += parseFloat(input.value || 0));
     row.querySelector('.total-cell').textContent = total.toFixed(2);
+}
+
+// Gérer les changements de checkboxes sans rafraîchir le tableau
+async function handleCheckboxChange(row, checkbox) {
+    const noteId = row.dataset.noteId;
+    const field = checkbox.dataset.field;
+    const value = checkbox.checked;
+    
+    try {
+        const response = await fetch(`/update-note/${noteId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ [field]: value })
+        });
+        
+        if (response.ok) {
+            // Feedback visuel temporaire
+            row.style.backgroundColor = '#d4edda';
+            setTimeout(() => row.style.backgroundColor = '', 700);
+            
+            // Mettre à jour les données locales sans recharger le tableau
+            const noteIndex = allNotesData.findIndex(n => n._id === noteId);
+            if (noteIndex !== -1) {
+                allNotesData[noteIndex][field] = value;
+            }
+        } else {
+            alert('Erreur de sauvegarde du statut.');
+            checkbox.checked = !value; // Revenir à l'état précédent
+        }
+    } catch (error) {
+        alert('Erreur réseau lors de la sauvegarde du statut.');
+        checkbox.checked = !value; // Revenir à l'état précédent
+    }
 }
 
 // Actions du tableau

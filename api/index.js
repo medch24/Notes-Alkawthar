@@ -424,6 +424,23 @@ app.post('/generate-word', requireAuth, sectionMiddleware, async (req, res) => {
             return acc;
         }, {});
 
+        // Ordre spécifique des matières pour la génération Word
+        const subjectOrder = [
+            'Langue et litt',
+            'Philosophie',
+            'Société indi',
+            'Maths',
+            'Sciences',
+            'Biologie',
+            'Physique chimie',
+            'Design',
+            'SES',
+            'SNT',
+            'ART',
+            'Musique',
+            'PE'
+        ];
+
         for (const className in notesByClass) {
             const classStudentList = req.sectionData.studentsByClass[className] || [];
             if (classStudentList.length === 0) continue;
@@ -431,11 +448,30 @@ app.post('/generate-word', requireAuth, sectionMiddleware, async (req, res) => {
             const doc = new Docxtemplater(new PizZip(templateContent), { paragraphLoop: true, linebreaks: true, nullGetter: () => "" });
 
             const uniqueSubjectsInClassNotes = [...new Set(notesByClass[className].map(n => n.subject))];
-            const subjectsToInclude = (req.sectionData.subjectsByClass[className] || []).filter(s => allowedOptions.subjects.includes(s) && uniqueSubjectsInClassNotes.includes(s)).sort();
+            const subjectsToInclude = (req.sectionData.subjectsByClass[className] || [])
+                .filter(s => allowedOptions.subjects.includes(s) && uniqueSubjectsInClassNotes.includes(s));
 
             if (subjectsToInclude.length === 0) continue;
 
-            const renderDataSubjects = subjectsToInclude.map(subjectName => ({
+            // Trier les matières selon l'ordre spécifié
+            const sortedSubjects = subjectsToInclude.sort((a, b) => {
+                const indexA = subjectOrder.findIndex(s => a.toLowerCase().includes(s.toLowerCase()));
+                const indexB = subjectOrder.findIndex(s => b.toLowerCase().includes(s.toLowerCase()));
+                
+                // Si les deux matières sont dans l'ordre défini
+                if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+                
+                // Si seulement A est dans l'ordre, A vient en premier
+                if (indexA !== -1) return -1;
+                
+                // Si seulement B est dans l'ordre, B vient en premier
+                if (indexB !== -1) return 1;
+                
+                // Si aucune n'est dans l'ordre, tri alphabétique
+                return a.localeCompare(b);
+            });
+
+            const renderDataSubjects = sortedSubjects.map(subjectName => ({
                 subjectName: subjectName,
                 assignedTeacher: getAssignedTeacher(subjectName, className, req.sectionData.teacherPermissions),
                 students: classStudentList.map(studentName => {
