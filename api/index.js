@@ -46,6 +46,7 @@ async function connectToDatabase() {
 app.set('trust proxy', 1);
 
 // Session avec MongoStore pour persistance
+// Session permanente jusqu'à déconnexion manuelle
 app.use(session({
     secret: SESSION_SECRET,
     resave: false,
@@ -54,14 +55,14 @@ app.use(session({
         mongoUrl: MONGO_URL,
         dbName: 'test',
         collectionName: 'sessions',
-        ttl: 14 * 24 * 60 * 60, // 14 jours
+        ttl: 365 * 24 * 60 * 60, // 365 jours (pratiquement permanent)
         autoRemove: 'native',
         touchAfter: 24 * 3600 // Mise à jour lazy toutes les 24h
     }),
     cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
-        maxAge: 14 * 24 * 60 * 60 * 1000, // 14 jours (par défaut)
+        maxAge: 365 * 24 * 60 * 60 * 1000, // 365 jours (connexion permanente par défaut)
         sameSite: 'lax'
     }
 }));
@@ -233,10 +234,9 @@ app.post('/login', (req, res) => {
         req.session.user = username;
         req.session.section = userSection;
         
-        // Gérer "Rester connecté"
-        if (rememberMe) {
-            req.session.cookie.maxAge = 14 * 24 * 60 * 60 * 1000; // 14 jours
-        }
+        // Session permanente - le cookie persiste jusqu'à déconnexion manuelle
+        // Le paramètre rememberMe n'est plus nécessaire mais conservé pour compatibilité
+        req.session.cookie.maxAge = 365 * 24 * 60 * 60 * 1000; // 365 jours
         
         console.log(`✅ Login successful for user: ${username} in section: ${userSection}`);
         res.status(200).json({ success: true, message: 'Connexion réussie' });
@@ -289,12 +289,9 @@ app.get('/all-notes', requireAuth, sectionMiddleware, async (req, res) => {
     }
     try {
         const query = buildMongoQueryForUser(username, semester, req.sectionData.teacherPermissions);
-        // Filtrer par section OU notes sans section (anciennes données = boys par défaut)
-        if (section === 'boys') {
-            query.$or = [{ section: 'boys' }, { section: { $exists: false } }];
-        } else {
-            query.section = section;
-        }
+        // CORRECTION: Filtrage strict par section - pas de chevauchement entre sections
+        // Les sections sont STRICTEMENT indépendantes
+        query.section = section;
         const notes = await Note.find(query).lean();
         res.status(200).json(notes);
     } catch (error) {
@@ -400,12 +397,8 @@ app.post('/generate-word', requireAuth, sectionMiddleware, async (req, res) => {
     const section = req.session.section || 'boys';
     try {
         const query = buildMongoQueryForUser(username, semester, req.sectionData.teacherPermissions);
-        // Filtrer par section OU notes sans section (anciennes données = boys)
-        if (section === 'boys') {
-            query.$or = [{ section: 'boys' }, { section: { $exists: false } }];
-        } else {
-            query.section = section;
-        }
+        // CORRECTION: Filtrage strict par section - pas de chevauchement
+        query.section = section;
         query.approvedByAdmin = { $ne: true }; // Ne pas générer les notes déjà approuvées
         const notes = await Note.find(query).lean();
         if (notes.length === 0) return res.status(404).send(`❌ Aucune donnée non approuvée pour le semestre ${semester}.`);
@@ -525,12 +518,8 @@ app.post('/generate-excel', requireAuth, sectionMiddleware, async (req, res) => 
     const section = req.session.section || 'boys';
     try {
         const query = buildMongoQueryForUser(username, semester, req.sectionData.teacherPermissions);
-        // Filtrer par section OU notes sans section (anciennes données = boys)
-        if (section === 'boys') {
-            query.$or = [{ section: 'boys' }, { section: { $exists: false } }];
-        } else {
-            query.section = section;
-        }
+        // CORRECTION: Filtrage strict par section - pas de chevauchement
+        query.section = section;
         query.approvedByAdmin = { $ne: true };
         const notes = await Note.find(query).lean();
         if (notes.length === 0) return res.status(404).send(`❌ Aucune note non approuvée pour la génération Excel.`);
