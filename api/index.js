@@ -289,10 +289,19 @@ app.get('/all-notes', requireAuth, sectionMiddleware, async (req, res) => {
     }
     try {
         const query = buildMongoQueryForUser(username, semester, req.sectionData.teacherPermissions);
-        // CORRECTION: Filtrage strict par section - pas de chevauchement entre sections
-        // Les sections sont STRICTEMENT indépendantes
-        query.section = section;
+        // CORRECTION: Filtrage strict par section avec support des anciennes notes
+        // - Les sections sont STRICTEMENT indépendantes
+        // - Les notes sans section (anciennes données) sont considérées comme 'boys' par défaut
+        // - Cela évite la perte de données historiques tout en maintenant la séparation stricte
+        if (section === 'boys') {
+            // Section garçons: inclure notes 'boys' ET notes sans section (anciennes)
+            query.$or = [{ section: 'boys' }, { section: { $exists: false } }, { section: null }];
+        } else {
+            // Section filles: UNIQUEMENT les notes marquées 'girls' (strictement)
+            query.section = 'girls';
+        }
         const notes = await Note.find(query).lean();
+        console.log(`📊 Fetched ${notes.length} notes for section: ${section}, semester: ${semester}`);
         res.status(200).json(notes);
     } catch (error) {
         console.error('Error fetching notes:', error);
@@ -397,8 +406,12 @@ app.post('/generate-word', requireAuth, sectionMiddleware, async (req, res) => {
     const section = req.session.section || 'boys';
     try {
         const query = buildMongoQueryForUser(username, semester, req.sectionData.teacherPermissions);
-        // CORRECTION: Filtrage strict par section - pas de chevauchement
-        query.section = section;
+        // CORRECTION: Filtrage strict par section avec support des anciennes notes
+        if (section === 'boys') {
+            query.$or = [{ section: 'boys' }, { section: { $exists: false } }, { section: null }];
+        } else {
+            query.section = 'girls';
+        }
         query.approvedByAdmin = { $ne: true }; // Ne pas générer les notes déjà approuvées
         const notes = await Note.find(query).lean();
         if (notes.length === 0) return res.status(404).send(`❌ Aucune donnée non approuvée pour le semestre ${semester}.`);
@@ -518,8 +531,12 @@ app.post('/generate-excel', requireAuth, sectionMiddleware, async (req, res) => 
     const section = req.session.section || 'boys';
     try {
         const query = buildMongoQueryForUser(username, semester, req.sectionData.teacherPermissions);
-        // CORRECTION: Filtrage strict par section - pas de chevauchement
-        query.section = section;
+        // CORRECTION: Filtrage strict par section avec support des anciennes notes
+        if (section === 'boys') {
+            query.$or = [{ section: 'boys' }, { section: { $exists: false } }, { section: null }];
+        } else {
+            query.section = 'girls';
+        }
         query.approvedByAdmin = { $ne: true };
         const notes = await Note.find(query).lean();
         if (notes.length === 0) return res.status(404).send(`❌ Aucune note non approuvée pour la génération Excel.`);
@@ -574,8 +591,8 @@ app.post('/migrate-old-notes', requireAuth, async (req, res) => {
     try {
         // Mettre à jour toutes les notes sans section pour les mettre en 'boys' par défaut
         const result = await Note.updateMany(
-            { section: { $exists: false } },
-            { $set: { section: 'boys', approvedByAdmin: false, enteredInSystem: false } }
+            { $or: [{ section: { $exists: false } }, { section: null }] },
+            { $set: { section: 'boys' } }
         );
         
         console.log(`✅ Migration: ${result.modifiedCount} notes mises à jour`);
@@ -586,6 +603,32 @@ app.post('/migrate-old-notes', requireAuth, async (req, res) => {
     } catch (error) {
         console.error('❌ Error during migration:', error);
         res.status(500).json({ success: false, message: 'Erreur lors de la migration' });
+    }
+});
+
+// Route de statistiques pour déboguer (admin seulement)
+app.get('/stats-notes', requireAuth, sectionMiddleware, async (req, res) => {
+    await connectToDatabase();
+    try {
+        const totalNotes = await Note.countDocuments({});
+        const boysNotes = await Note.countDocuments({ section: 'boys' });
+        const girlsNotes = await Note.countDocuments({ section: 'girls' });
+        const noSectionNotes = await Note.countDocuments({ 
+            $or: [{ section: { $exists: false } }, { section: null }] 
+        });
+        
+        const sampleNotes = await Note.find({}).limit(5).lean();
+        
+        res.status(200).json({
+            total: totalNotes,
+            boys: boysNotes,
+            girls: girlsNotes,
+            noSection: noSectionNotes,
+            samples: sampleNotes
+        });
+    } catch (error) {
+        console.error('❌ Error fetching stats:', error);
+        res.status(500).json({ error: 'Erreur lors de la récupération des stats' });
     }
 });
 
