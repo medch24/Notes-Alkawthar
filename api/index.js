@@ -416,7 +416,7 @@ app.post('/generate-word', requireAuth, sectionMiddleware, async (req, res) => {
         const notes = await Note.find(query).lean();
         if (notes.length === 0) return res.status(404).send(`❌ Aucune donnée non approuvée pour le semestre ${semester}.`);
         
-        const templateURL = 'https://cdn.glitch.global/2d2bcfb4-8233-494d-8e48-2d84f224e9d1/Notes%203%20(1)%20(1).docx?v=1748167642949';
+        const templateURL = 'https://docs.google.com/document/d/1AyBNXpuAddW0_-6rT6oQ0m0DMbNg2KHv/export?format=docx';
         const response = await axios.get(templateURL, { responseType: 'arraybuffer' });
         const templateContent = response.data;
 
