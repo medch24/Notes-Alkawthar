@@ -522,6 +522,12 @@ function updateSortStudentOptionsForFilterClass(filterClass) {
 // AFFICHAGE DU TABLEAU AVEC MODIFICATION INLINE
 // ====================================
 function displayNotesTable(notes) {
+    // Sauvegarder les notes actuellement affichées pour les boutons en masse
+    currentlyDisplayedNotes = notes;
+    
+    // Mettre à jour la visibilité des boutons en masse
+    updateBulkActionsVisibility();
+    
     if (notes.length === 0) {
         outputDiv.innerHTML = '<p style="text-align: center; color: #999; padding: 2rem;">Aucune note disponible pour les filtres sélectionnés.</p>';
         return;
@@ -855,3 +861,148 @@ async function handleLogout() {
         window.location.href = '/home.html';
     }
 }
+
+// ====================================
+// BOUTONS EN MASSE (BULK ACTIONS)
+// ====================================
+
+// Variable pour suivre les notes actuellement affichées (filtrées)
+let currentlyDisplayedNotes = [];
+
+// Fonction pour afficher/masquer les boutons en masse
+function updateBulkActionsVisibility() {
+    const bulkActionsContainer = document.getElementById('bulkActionsContainer');
+    const toggleAllApprovedButton = document.getElementById('toggleAllApprovedButton');
+    
+    if (currentlyDisplayedNotes.length > 0) {
+        bulkActionsContainer.style.display = 'flex';
+        
+        // Masquer le bouton "Tout Approuvé" si l'utilisateur n'est pas admin
+        if (!isAdmin && toggleAllApprovedButton) {
+            toggleAllApprovedButton.style.display = 'none';
+        }
+    } else {
+        bulkActionsContainer.style.display = 'none';
+    }
+}
+
+// Fonction pour cocher/décocher tous les "Saisi"
+async function toggleAllEntered() {
+    if (currentlyDisplayedNotes.length === 0) {
+        alert('Aucune note à traiter');
+        return;
+    }
+    
+    // Déterminer l'état: si au moins une note n'est pas saisie, on coche tout, sinon on décoche tout
+    const allEntered = currentlyDisplayedNotes.every(note => note.enteredInSystem);
+    const newState = !allEntered;
+    
+    const action = newState ? 'cocher' : 'décocher';
+    const message = `Voulez-vous ${action} toutes les ${currentlyDisplayedNotes.length} notes affichées comme "Saisi" ?`;
+    
+    if (!confirm(message)) return;
+    
+    // Désactiver le bouton pendant le traitement
+    const button = document.getElementById('toggleAllEnteredButton');
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Traitement...</span>';
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    // Traiter toutes les notes affichées
+    for (const note of currentlyDisplayedNotes) {
+        try {
+            const response = await fetch(`/update-note/${note._id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enteredInSystem: newState })
+            });
+            
+            if (response.ok) {
+                successCount++;
+                note.enteredInSystem = newState; // Mise à jour locale
+            } else {
+                failCount++;
+            }
+        } catch (error) {
+            console.error(`Error updating note ${note._id}:`, error);
+            failCount++;
+        }
+    }
+    
+    // Réactiver le bouton
+    button.disabled = false;
+    button.innerHTML = '<i class="fas fa-check-double"></i> <span>Tout Saisi</span>';
+    
+    // Afficher le résultat
+    alert(`✅ ${successCount} notes mises à jour\n${failCount > 0 ? `❌ ${failCount} erreurs` : ''}`);
+    
+    // Recharger les données
+    await fetchAndDisplayData();
+}
+
+// Fonction pour cocher/décocher tous les "Approuvé"
+async function toggleAllApproved() {
+    if (!isAdmin) {
+        alert('Seuls les administrateurs peuvent approuver les notes.');
+        return;
+    }
+    
+    if (currentlyDisplayedNotes.length === 0) {
+        alert('Aucune note à traiter');
+        return;
+    }
+    
+    // Déterminer l'état: si au moins une note n'est pas approuvée, on coche tout, sinon on décoche tout
+    const allApproved = currentlyDisplayedNotes.every(note => note.approvedByAdmin);
+    const newState = !allApproved;
+    
+    const action = newState ? 'approuver' : 'désapprouver';
+    const message = `Voulez-vous ${action} toutes les ${currentlyDisplayedNotes.length} notes affichées ?`;
+    
+    if (!confirm(message)) return;
+    
+    // Désactiver le bouton pendant le traitement
+    const button = document.getElementById('toggleAllApprovedButton');
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Traitement...</span>';
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    // Traiter toutes les notes affichées
+    for (const note of currentlyDisplayedNotes) {
+        try {
+            const response = await fetch(`/update-note/${note._id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ approvedByAdmin: newState })
+            });
+            
+            if (response.ok) {
+                successCount++;
+                note.approvedByAdmin = newState; // Mise à jour locale
+            } else {
+                failCount++;
+            }
+        } catch (error) {
+            console.error(`Error updating note ${note._id}:`, error);
+            failCount++;
+        }
+    }
+    
+    // Réactiver le bouton
+    button.disabled = false;
+    button.innerHTML = '<i class="fas fa-check-circle"></i> <span>Tout Approuvé</span>';
+    
+    // Afficher le résultat
+    alert(`✅ ${successCount} notes mises à jour\n${failCount > 0 ? `❌ ${failCount} erreurs` : ''}`);
+    
+    // Recharger les données
+    await fetchAndDisplayData();
+}
+
+// Attacher les événements aux boutons
+document.getElementById('toggleAllEnteredButton').addEventListener('click', toggleAllEntered);
+document.getElementById('toggleAllApprovedButton').addEventListener('click', toggleAllApproved);

@@ -46,7 +46,7 @@ async function connectToDatabase() {
 app.set('trust proxy', 1);
 
 // Session avec MongoStore pour persistance
-// Session permanente jusqu'à déconnexion manuelle
+// Session permanente jusqu'à déconnexion manuelle (pas de limite de temps)
 app.use(session({
     secret: SESSION_SECRET,
     resave: false,
@@ -55,14 +55,14 @@ app.use(session({
         mongoUrl: MONGO_URL,
         dbName: 'test',
         collectionName: 'sessions',
-        ttl: 365 * 24 * 60 * 60, // 365 jours (pratiquement permanent)
+        ttl: 10 * 365 * 24 * 60 * 60, // 10 ans (permanent jusqu'à déconnexion manuelle)
         autoRemove: 'native',
         touchAfter: 24 * 3600 // Mise à jour lazy toutes les 24h
     }),
     cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
-        maxAge: 365 * 24 * 60 * 60 * 1000, // 365 jours (connexion permanente par défaut)
+        maxAge: null, // Pas de limite - session permanente jusqu'à déconnexion
         sameSite: 'lax'
     }
 }));
@@ -225,7 +225,7 @@ app.get('/dashboard.html', (req, res) => {
 
 // Route de login (POST) - mise à jour pour gérer la section depuis le body
 app.post('/login', (req, res) => {
-    const { username, password, section, rememberMe } = req.body;
+    const { username, password, section } = req.body;
     const userSection = section || 'boys';
     
     const sectionData = getSectionData(userSection);
@@ -234,9 +234,8 @@ app.post('/login', (req, res) => {
         req.session.user = username;
         req.session.section = userSection;
         
-        // Session permanente - le cookie persiste jusqu'à déconnexion manuelle
-        // Le paramètre rememberMe n'est plus nécessaire mais conservé pour compatibilité
-        req.session.cookie.maxAge = 365 * 24 * 60 * 60 * 1000; // 365 jours
+        // Session permanente - pas de limite de temps, persiste jusqu'à déconnexion manuelle
+        req.session.cookie.maxAge = null; // Pas de limite
         
         console.log(`✅ Login successful for user: ${username} in section: ${userSection}`);
         res.status(200).json({ success: true, message: 'Connexion réussie' });
