@@ -227,14 +227,26 @@
                     <span>Registre des Notes</span>
                 </h3>
                 <div class="bulk-actions" id="bulkActionsContainer" style="display: none;">
-                    <button id="toggleAllEnteredButton" class="bulk-btn entered-btn" title="Cocher/Décocher tous les 'Saisi'">
-                        <i class="fas fa-check-double"></i>
-                        <span>Tout Saisi</span>
-                    </button>
-                    <button id="toggleAllApprovedButton" class="bulk-btn approved-btn" title="Cocher/Décocher tous les 'Approuvé'">
-                        <i class="fas fa-check-circle"></i>
-                        <span>Tout Approuvé</span>
-                    </button>
+                    <div class="bulk-group">
+                        <button id="setAllEnteredButton" class="bulk-btn entered-btn" title="Cocher tous les 'Saisi'">
+                            <i class="fas fa-check-double"></i>
+                            <span>Tout Saisi</span>
+                        </button>
+                        <button id="unsetAllEnteredButton" class="bulk-btn unentered-btn" title="Décocher tous les 'Saisi'">
+                            <i class="fas fa-times-circle"></i>
+                            <span>Tout Non Saisi</span>
+                        </button>
+                    </div>
+                    <div class="bulk-group" id="approvedButtonsGroup">
+                        <button id="setAllApprovedButton" class="bulk-btn approved-btn" title="Cocher tous les 'Approuvé'">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Tout Approuvé</span>
+                        </button>
+                        <button id="unsetAllApprovedButton" class="bulk-btn unapproved-btn" title="Décocher tous les 'Approuvé'">
+                            <i class="fas fa-ban"></i>
+                            <span>Tout Désapprouvé</span>
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="table-wrapper">

@@ -863,6 +863,8 @@ async function handleLogout() {
 }
 
 // ====================================
+
+// ====================================
 // BOUTONS EN MASSE (BULK ACTIONS)
 // ====================================
 
@@ -872,38 +874,36 @@ let currentlyDisplayedNotes = [];
 // Fonction pour afficher/masquer les boutons en masse
 function updateBulkActionsVisibility() {
     const bulkActionsContainer = document.getElementById('bulkActionsContainer');
-    const toggleAllApprovedButton = document.getElementById('toggleAllApprovedButton');
+    const approvedButtonsGroup = document.getElementById('approvedButtonsGroup');
     
     if (currentlyDisplayedNotes.length > 0) {
         bulkActionsContainer.style.display = 'flex';
         
-        // Masquer le bouton "Tout Approuvé" si l'utilisateur n'est pas admin
-        if (!isAdmin && toggleAllApprovedButton) {
-            toggleAllApprovedButton.style.display = 'none';
+        // Masquer les boutons "Approuvé" si l'utilisateur n'est pas admin
+        if (!isAdmin && approvedButtonsGroup) {
+            approvedButtonsGroup.style.display = 'none';
+        } else if (approvedButtonsGroup) {
+            approvedButtonsGroup.style.display = 'flex';
         }
     } else {
         bulkActionsContainer.style.display = 'none';
     }
 }
 
-// Fonction pour cocher/décocher tous les "Saisi"
-async function toggleAllEntered() {
+// Fonction générique pour mettre à jour en masse
+async function bulkUpdateNotes(field, newState, buttonId, buttonIcon, buttonText, actionName) {
     if (currentlyDisplayedNotes.length === 0) {
         alert('Aucune note à traiter');
         return;
     }
     
-    // Déterminer l'état: si au moins une note n'est pas saisie, on coche tout, sinon on décoche tout
-    const allEntered = currentlyDisplayedNotes.every(note => note.enteredInSystem);
-    const newState = !allEntered;
-    
-    const action = newState ? 'cocher' : 'décocher';
-    const message = `Voulez-vous ${action} toutes les ${currentlyDisplayedNotes.length} notes affichées comme "Saisi" ?`;
+    const message = `Voulez-vous ${actionName} toutes les ${currentlyDisplayedNotes.length} notes affichées ?`;
     
     if (!confirm(message)) return;
     
     // Désactiver le bouton pendant le traitement
-    const button = document.getElementById('toggleAllEnteredButton');
+    const button = document.getElementById(buttonId);
+    const originalHTML = button.innerHTML;
     button.disabled = true;
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Traitement...</span>';
     
@@ -913,15 +913,18 @@ async function toggleAllEntered() {
     // Traiter toutes les notes affichées
     for (const note of currentlyDisplayedNotes) {
         try {
+            const updateData = {};
+            updateData[field] = newState;
+            
             const response = await fetch(`/update-note/${note._id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ enteredInSystem: newState })
+                body: JSON.stringify(updateData)
             });
             
             if (response.ok) {
                 successCount++;
-                note.enteredInSystem = newState; // Mise à jour locale
+                note[field] = newState; // Mise à jour locale
             } else {
                 failCount++;
             }
@@ -933,76 +936,84 @@ async function toggleAllEntered() {
     
     // Réactiver le bouton
     button.disabled = false;
-    button.innerHTML = '<i class="fas fa-check-double"></i> <span>Tout Saisi</span>';
+    button.innerHTML = originalHTML;
     
     // Afficher le résultat
-    alert(`✅ ${successCount} notes mises à jour\n${failCount > 0 ? `❌ ${failCount} erreurs` : ''}`);
+    const resultMessage = `✅ ${successCount} note(s) mise(s) à jour`;
+    const errorMessage = failCount > 0 ? `\n❌ ${failCount} erreur(s)` : '';
+    alert(resultMessage + errorMessage);
     
     // Recharger les données
     await fetchAndDisplayData();
 }
 
-// Fonction pour cocher/décocher tous les "Approuvé"
-async function toggleAllApproved() {
+// Fonction pour cocher tous les "Saisi"
+async function setAllEntered() {
+    await bulkUpdateNotes(
+        'enteredInSystem', 
+        true, 
+        'setAllEnteredButton',
+        'fa-check-double',
+        'Tout Saisi',
+        'marquer comme "Saisi"'
+    );
+}
+
+// Fonction pour décocher tous les "Saisi"
+async function unsetAllEntered() {
+    await bulkUpdateNotes(
+        'enteredInSystem', 
+        false, 
+        'unsetAllEnteredButton',
+        'fa-times-circle',
+        'Tout Non Saisi',
+        'marquer comme "Non Saisi"'
+    );
+}
+
+// Fonction pour cocher tous les "Approuvé"
+async function setAllApproved() {
     if (!isAdmin) {
         alert('Seuls les administrateurs peuvent approuver les notes.');
         return;
     }
     
-    if (currentlyDisplayedNotes.length === 0) {
-        alert('Aucune note à traiter');
+    await bulkUpdateNotes(
+        'approvedByAdmin', 
+        true, 
+        'setAllApprovedButton',
+        'fa-check-circle',
+        'Tout Approuvé',
+        'approuver'
+    );
+}
+
+// Fonction pour décocher tous les "Approuvé"
+async function unsetAllApproved() {
+    if (!isAdmin) {
+        alert('Seuls les administrateurs peuvent désapprouver les notes.');
         return;
     }
     
-    // Déterminer l'état: si au moins une note n'est pas approuvée, on coche tout, sinon on décoche tout
-    const allApproved = currentlyDisplayedNotes.every(note => note.approvedByAdmin);
-    const newState = !allApproved;
-    
-    const action = newState ? 'approuver' : 'désapprouver';
-    const message = `Voulez-vous ${action} toutes les ${currentlyDisplayedNotes.length} notes affichées ?`;
-    
-    if (!confirm(message)) return;
-    
-    // Désactiver le bouton pendant le traitement
-    const button = document.getElementById('toggleAllApprovedButton');
-    button.disabled = true;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Traitement...</span>';
-    
-    let successCount = 0;
-    let failCount = 0;
-    
-    // Traiter toutes les notes affichées
-    for (const note of currentlyDisplayedNotes) {
-        try {
-            const response = await fetch(`/update-note/${note._id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ approvedByAdmin: newState })
-            });
-            
-            if (response.ok) {
-                successCount++;
-                note.approvedByAdmin = newState; // Mise à jour locale
-            } else {
-                failCount++;
-            }
-        } catch (error) {
-            console.error(`Error updating note ${note._id}:`, error);
-            failCount++;
-        }
-    }
-    
-    // Réactiver le bouton
-    button.disabled = false;
-    button.innerHTML = '<i class="fas fa-check-circle"></i> <span>Tout Approuvé</span>';
-    
-    // Afficher le résultat
-    alert(`✅ ${successCount} notes mises à jour\n${failCount > 0 ? `❌ ${failCount} erreurs` : ''}`);
-    
-    // Recharger les données
-    await fetchAndDisplayData();
+    await bulkUpdateNotes(
+        'approvedByAdmin', 
+        false, 
+        'unsetAllApprovedButton',
+        'fa-ban',
+        'Tout Désapprouvé',
+        'désapprouver'
+    );
 }
 
 // Attacher les événements aux boutons
-document.getElementById('toggleAllEnteredButton').addEventListener('click', toggleAllEntered);
-document.getElementById('toggleAllApprovedButton').addEventListener('click', toggleAllApproved);
+document.addEventListener('DOMContentLoaded', () => {
+    const setAllEnteredBtn = document.getElementById('setAllEnteredButton');
+    const unsetAllEnteredBtn = document.getElementById('unsetAllEnteredButton');
+    const setAllApprovedBtn = document.getElementById('setAllApprovedButton');
+    const unsetAllApprovedBtn = document.getElementById('unsetAllApprovedButton');
+    
+    if (setAllEnteredBtn) setAllEnteredBtn.addEventListener('click', setAllEntered);
+    if (unsetAllEnteredBtn) unsetAllEnteredBtn.addEventListener('click', unsetAllEntered);
+    if (setAllApprovedBtn) setAllApprovedBtn.addEventListener('click', setAllApproved);
+    if (unsetAllApprovedBtn) unsetAllApprovedBtn.addEventListener('click', unsetAllApproved);
+});
